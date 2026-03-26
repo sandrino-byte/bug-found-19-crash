@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
-import { Info } from "lucide-react";
+import { motion, Reorder, useDragControls, useMotionValue, useTransform, PanInfo } from "framer-motion";
+import { Info, GripVertical } from "lucide-react";
 import SkillDeleteDialog from "@/components/SkillDeleteDialog";
 import type { Skill } from "@/types/skill";
 import { getSkillStats } from "@/types/skill";
@@ -9,6 +9,7 @@ interface SkillPageProps {
   skills: Skill[];
   onDelete?: (id: string) => void;
   onSkillClick?: (skill: Skill) => void;
+  onReorder?: (skills: Skill[]) => void;
 }
 
 const SWIPE_THRESHOLD = 100;
@@ -35,16 +36,13 @@ const SkillItem = ({
   onClick: (skill: Skill) => void;
 }) => {
   const [showInfo, setShowInfo] = useState(false);
+  const dragControls = useDragControls();
   const x = useMotionValue(0);
   const opacity = useTransform(x, [-150, -80, 0, 80, 150], [0.3, 0.7, 1, 0.7, 0.3]);
   const bg = useTransform(
     x,
     [-SWIPE_THRESHOLD, 0, SWIPE_THRESHOLD],
-    [
-      "hsl(0 84% 55% / 0.15)",
-      "hsl(0 84% 55% / 0)",
-      "hsl(0 84% 55% / 0.15)",
-    ]
+    ["hsl(0 84% 55% / 0.15)", "hsl(0 84% 55% / 0)", "hsl(0 84% 55% / 0.15)"]
   );
 
   const handleDragEnd = (_: any, info: PanInfo) => {
@@ -57,63 +55,85 @@ const SkillItem = ({
   const skillStats = getSkillStats(skill);
 
   return (
-    <motion.div
-      style={{ x, opacity, backgroundColor: bg }}
-      drag="x"
-      dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.5}
-      dragDirectionLock
-      onDragEnd={handleDragEnd}
-      onClick={() => onClick(skill)}
-      className="glow-border bg-card p-[1px] touch-pan-y cursor-pointer"
-      whileTap={{ scale: 0.98 }}
+    <Reorder.Item
+      value={skill}
+      dragListener={false}
+      dragControls={dragControls}
+      className="list-none"
+      whileDrag={{ scale: 1.02, boxShadow: "0 0 20px hsl(187 92% 53% / 0.3)" }}
     >
-      <div className="bg-card px-3 py-2.5 flex items-center justify-between relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none"
-          style={{ background: "linear-gradient(90deg, hsl(187 92% 53% / 0.02) 0%, transparent 50%)" }} />
+      <motion.div
+        style={{ x, opacity, backgroundColor: bg }}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.5}
+        dragDirectionLock
+        onDragEnd={handleDragEnd}
+        onClick={() => onClick(skill)}
+        className="glow-border bg-card p-[1px] touch-pan-y cursor-pointer"
+        whileTap={{ scale: 0.98 }}
+      >
+        <div className="bg-card px-2 py-2.5 flex items-center justify-between relative overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none"
+            style={{ background: "linear-gradient(90deg, hsl(187 92% 53% / 0.02) 0%, transparent 50%)" }} />
 
-        <div className="flex items-center gap-2 min-w-0 flex-1 relative z-10">
-          <div className="w-1.5 h-1.5 bg-primary rotate-45 flex-shrink-0"
-            style={{ boxShadow: "0 0 4px hsl(187 92% 53% / 0.6)" }} />
-          <span className="font-rajdhani font-semibold text-sm text-foreground tracking-wider uppercase truncate">
-            {skill.name}
-          </span>
-          {skillStats.length > 0 && (
-            <span className="text-primary/50 text-[8px] tracking-wider uppercase flex-shrink-0">
-              {skillStats.join(" · ")}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0 relative z-10">
-          <span className="font-rajdhani font-bold text-primary glow-text text-sm">
-            {skill.result.toFixed(6)}
-          </span>
-          <button
-            onClick={(e) => { e.stopPropagation(); setShowInfo(!showInfo); }}
-            className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+          {/* Grip handle — drag from here to reorder */}
+          <div
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              dragControls.start(e);
+            }}
+            className="flex-shrink-0 cursor-grab active:cursor-grabbing touch-none px-1 relative z-10"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Info size={12} />
-          </button>
-        </div>
-      </div>
-      {showInfo && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          className="px-3 pb-2 border-t border-primary/10"
-        >
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-muted-foreground text-[9px] tracking-wider uppercase">Valore cumulativo</span>
-            <span className="font-rajdhani font-bold text-foreground text-sm">{cumulativeValue}</span>
+            <GripVertical size={14} className="text-muted-foreground/40 hover:text-primary/60 transition-colors" />
           </div>
-        </motion.div>
-      )}
-    </motion.div>
+
+          <div className="flex items-center gap-2 min-w-0 flex-1 relative z-10">
+            <div className="w-1.5 h-1.5 bg-primary rotate-45 flex-shrink-0"
+              style={{ boxShadow: "0 0 4px hsl(187 92% 53% / 0.6)" }} />
+            <span className="font-rajdhani font-semibold text-sm text-foreground tracking-wider uppercase truncate">
+              {skill.name}
+            </span>
+            {skillStats.length > 0 && (
+              <span className="text-primary/50 text-[8px] tracking-wider uppercase flex-shrink-0">
+                {skillStats.join(" · ")}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-shrink-0 relative z-10">
+            <span className="font-rajdhani font-bold text-primary glow-text text-sm">
+              {skill.result.toFixed(6)}
+            </span>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowInfo(!showInfo); }}
+              className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Info size={12} />
+            </button>
+          </div>
+        </div>
+
+        {showInfo && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="px-3 pb-2 border-t border-primary/10"
+          >
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-muted-foreground text-[9px] tracking-wider uppercase">Valore cumulativo</span>
+              <span className="font-rajdhani font-bold text-foreground text-sm">{cumulativeValue}</span>
+            </div>
+          </motion.div>
+        )}
+      </motion.div>
+    </Reorder.Item>
   );
 };
 
-const SkillPage = ({ skills, onDelete, onSkillClick }: SkillPageProps) => {
+const SkillPage = ({ skills, onDelete, onSkillClick, onReorder }: SkillPageProps) => {
   const [deleteTarget, setDeleteTarget] = useState<Skill | null>(null);
 
   const handleConfirmDelete = () => {
@@ -141,29 +161,28 @@ const SkillPage = ({ skills, onDelete, onSkillClick }: SkillPageProps) => {
           </p>
         </div>
       ) : (
-        <div className="w-full max-w-sm space-y-2 relative z-10">
-          {skills.map((skill, i) => (
-            <motion.div
+        <Reorder.Group
+          axis="y"
+          values={skills}
+          onReorder={(newOrder) => onReorder?.(newOrder)}
+          className="w-full max-w-sm space-y-2 relative z-10"
+        >
+          {skills.map((skill) => (
+            <SkillItem
               key={skill.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05 }}
-            >
-              <SkillItem
-                skill={skill}
-                onRequestDelete={setDeleteTarget}
-                onClick={(s) =>
-                  onSkillClick?.({
-                    ...s,
-                    base: s.base || "5",
-                    rate: s.rate || "1.005",
-                    exponent: s.exponent || "0",
-                  })
-                }
-              />
-            </motion.div>
+              skill={skill}
+              onRequestDelete={setDeleteTarget}
+              onClick={(s) =>
+                onSkillClick?.({
+                  ...s,
+                  base: s.base || "5",
+                  rate: s.rate || "1.005",
+                  exponent: s.exponent || "0",
+                })
+              }
+            />
           ))}
-        </div>
+        </Reorder.Group>
       )}
 
       <SkillDeleteDialog

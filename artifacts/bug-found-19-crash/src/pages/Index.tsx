@@ -61,6 +61,10 @@ const Index = () => {
     setSkills((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
+  const handleSkillReorder = useCallback((newOrder: Skill[]) => {
+    setSkills(newOrder);
+  }, []);
+
   const handleSkillClick = useCallback((skill: Skill) => {
     setLoadedSkill(skill);
   }, []);
@@ -90,7 +94,7 @@ const Index = () => {
       <XpAnimation events={xpEvents} />
 
       <VerticalPages onPageChange={setCurrentPage}>
-        <SkillPage skills={skills} onDelete={handleSkillDelete} onSkillClick={handleSkillClick} />
+        <SkillPage skills={skills} onDelete={handleSkillDelete} onSkillClick={handleSkillClick} onReorder={handleSkillReorder} />
         <StatsPage stats={stats} />
         <ComingSoonPage />
       </VerticalPages>
