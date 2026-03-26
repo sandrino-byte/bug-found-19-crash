@@ -31,9 +31,11 @@ const snapToEdge = (x: number, y: number): { x: number; y: number } => {
   return { x: snappedX, y: clampedY };
 };
 
+const HEADER_HEIGHT = 36;
+
 const clampPopup = (left: number, top: number) => ({
   left: Math.max(PAD, Math.min(left, window.innerWidth - POPUP_WIDTH - PAD)),
-  top: Math.max(PAD, Math.min(top, window.innerHeight - POPUP_HEIGHT - PAD)),
+  top: Math.max(PAD, Math.min(top, window.innerHeight - HEADER_HEIGHT - PAD)),
 });
 
 const Calculator = ({
