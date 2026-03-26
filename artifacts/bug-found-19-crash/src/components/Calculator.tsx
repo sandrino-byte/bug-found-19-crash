@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { motion, AnimatePresence, PanInfo, useMotionValue } from "framer-motion";
 import SystemInput from "@/components/SystemInput";
 import GiorniInput from "@/components/GiorniInput";
 import SkillNameDialog from "@/components/SkillNameDialog";
@@ -62,6 +62,14 @@ const Calculator = ({
   const didDrag = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, left: 0, top: 0 });
   const isDraggingPopup = useRef(false);
+
+  const btnX = useMotionValue(btnPos.x);
+  const btnY = useMotionValue(btnPos.y);
+
+  useEffect(() => {
+    btnX.set(btnPos.x);
+    btnY.set(btnPos.y);
+  }, [btnPos, btnX, btnY]);
 
   const calcPopupPos = useCallback((bx: number, by: number) => {
     const isLeft = bx < window.innerWidth / 2;
@@ -181,9 +189,9 @@ const Calculator = ({
     setShowNameDialog(false);
   };
 
-  const handleBtnDragEnd = (_: any, info: PanInfo) => {
+  const handleBtnDragEnd = () => {
     didDrag.current = true;
-    const newPos = snapToEdge(btnPos.x + info.offset.x, btnPos.y + info.offset.y);
+    const newPos = snapToEdge(btnX.get(), btnY.get());
     setBtnPos(newPos);
   };
 
@@ -213,16 +221,16 @@ const Calculator = ({
         {!isOpen && (
           <motion.div
             key="calc-btn"
-            initial={false}
-            animate={{ x: btnPos.x, y: btnPos.y, opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
             drag
             dragMomentum={false}
+            dragElastic={0}
             onDragStart={() => { didDrag.current = false; }}
             onDragEnd={handleBtnDragEnd}
             onTap={() => { if (!didDrag.current) openPopup(); didDrag.current = false; }}
-            style={{ position: "fixed", top: 0, left: 0 }}
+            style={{ position: "fixed", top: 0, left: 0, x: btnX, y: btnY }}
             className="z-50 cursor-grab active:cursor-grabbing"
           >
             <motion.div
