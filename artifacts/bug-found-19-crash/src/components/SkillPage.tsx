@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { motion, Reorder, useDragControls, useMotionValue, useTransform, PanInfo } from "framer-motion";
-import { Info, GripVertical } from "lucide-react";
+import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
+import { Info, ChevronUp, ChevronDown } from "lucide-react";
 import SkillDeleteDialog from "@/components/SkillDeleteDialog";
 import type { Skill } from "@/types/skill";
 import { getSkillStats } from "@/types/skill";
@@ -28,15 +28,22 @@ const getCumulativeInt = (skill: Skill): number => {
 
 const SkillItem = ({
   skill,
+  index,
+  total,
   onRequestDelete,
   onClick,
+  onMoveUp,
+  onMoveDown,
 }: {
   skill: Skill;
+  index: number;
+  total: number;
   onRequestDelete: (skill: Skill) => void;
   onClick: (skill: Skill) => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }) => {
   const [showInfo, setShowInfo] = useState(false);
-  const dragControls = useDragControls();
   const x = useMotionValue(0);
   const opacity = useTransform(x, [-150, -80, 0, 80, 150], [0.3, 0.7, 1, 0.7, 0.3]);
   const bg = useTransform(
@@ -55,12 +62,11 @@ const SkillItem = ({
   const skillStats = getSkillStats(skill);
 
   return (
-    <Reorder.Item
-      value={skill}
-      dragListener={false}
-      dragControls={dragControls}
-      className="list-none"
-      whileDrag={{ scale: 1.02, boxShadow: "0 0 20px hsl(187 92% 53% / 0.3)" }}
+    <motion.div
+      layout
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ layout: { type: "spring", stiffness: 300, damping: 28 } }}
     >
       <motion.div
         style={{ x, opacity, backgroundColor: bg }}
@@ -77,16 +83,22 @@ const SkillItem = ({
           <div className="absolute inset-0 pointer-events-none"
             style={{ background: "linear-gradient(90deg, hsl(187 92% 53% / 0.02) 0%, transparent 50%)" }} />
 
-          {/* Grip handle — drag from here to reorder */}
-          <div
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              dragControls.start(e);
-            }}
-            className="flex-shrink-0 cursor-grab active:cursor-grabbing touch-none px-1 relative z-10"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical size={14} className="text-muted-foreground/40 hover:text-primary/60 transition-colors" />
+          {/* Up / Down order buttons */}
+          <div className="flex flex-col flex-shrink-0 relative z-10 mr-1" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={onMoveUp}
+              disabled={index === 0}
+              className="text-muted-foreground/40 hover:text-primary transition-colors disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
+            >
+              <ChevronUp size={12} />
+            </button>
+            <button
+              onClick={onMoveDown}
+              disabled={index === total - 1}
+              className="text-muted-foreground/40 hover:text-primary transition-colors disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
+            >
+              <ChevronDown size={12} />
+            </button>
           </div>
 
           <div className="flex items-center gap-2 min-w-0 flex-1 relative z-10">
@@ -129,7 +141,7 @@ const SkillItem = ({
           </motion.div>
         )}
       </motion.div>
-    </Reorder.Item>
+    </motion.div>
   );
 };
 
@@ -139,6 +151,14 @@ const SkillPage = ({ skills, onDelete, onSkillClick, onReorder }: SkillPageProps
   const handleConfirmDelete = () => {
     if (deleteTarget && onDelete) onDelete(deleteTarget.id);
     setDeleteTarget(null);
+  };
+
+  const moveSkill = (index: number, direction: -1 | 1) => {
+    const newSkills = [...skills];
+    const target = index + direction;
+    if (target < 0 || target >= newSkills.length) return;
+    [newSkills[index], newSkills[target]] = [newSkills[target], newSkills[index]];
+    onReorder?.(newSkills);
   };
 
   return (
@@ -161,17 +181,16 @@ const SkillPage = ({ skills, onDelete, onSkillClick, onReorder }: SkillPageProps
           </p>
         </div>
       ) : (
-        <Reorder.Group
-          axis="y"
-          values={skills}
-          onReorder={(newOrder) => onReorder?.(newOrder)}
-          className="w-full max-w-sm space-y-2 relative z-10"
-        >
-          {skills.map((skill) => (
+        <div className="w-full max-w-sm flex flex-col gap-2 relative z-10">
+          {skills.map((skill, i) => (
             <SkillItem
               key={skill.id}
               skill={skill}
+              index={i}
+              total={skills.length}
               onRequestDelete={setDeleteTarget}
+              onMoveUp={() => moveSkill(i, -1)}
+              onMoveDown={() => moveSkill(i, 1)}
               onClick={(s) =>
                 onSkillClick?.({
                   ...s,
@@ -182,7 +201,7 @@ const SkillPage = ({ skills, onDelete, onSkillClick, onReorder }: SkillPageProps
               }
             />
           ))}
-        </Reorder.Group>
+        </div>
       )}
 
       <SkillDeleteDialog
