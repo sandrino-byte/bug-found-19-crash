@@ -6,6 +6,7 @@ import SkillPage from "@/components/SkillPage";
 import StatsPage from "@/components/StatsPage";
 import ComingSoonPage from "@/components/ComingSoonPage";
 import XpAnimation from "@/components/XpAnimation";
+import Clock from "@/components/Clock";
 import type { Skill, StatType, StatsData } from "@/types/skill";
 import { DEFAULT_STATS } from "@/types/skill";
 import type { XpEvent } from "@/components/XpAnimation";
@@ -89,6 +90,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen hex-grid-bg animate-flicker">
+      <Clock />
       <WelcomeScreen visible={showWelcome} onDismiss={() => setShowWelcome(false)} />
 
       <XpAnimation events={xpEvents} />
