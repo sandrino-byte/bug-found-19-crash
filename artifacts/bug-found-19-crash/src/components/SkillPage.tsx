@@ -135,7 +135,7 @@ const SkillItem = ({
             className="px-3 pb-2 border-t border-primary/10"
           >
             <div className="flex items-center justify-between pt-1">
-              <span className="text-muted-foreground text-[9px] tracking-wider uppercase">Valore cumulativo</span>
+              <span className="text-muted-foreground text-[9px] tracking-wider uppercase">Cumulative value</span>
               <span className="font-rajdhani font-bold text-foreground text-sm">{cumulativeValue}</span>
             </div>
           </motion.div>
@@ -177,7 +177,7 @@ const SkillPage = ({ skills, onDelete, onSkillClick, onReorder }: SkillPageProps
       {skills.length === 0 ? (
         <div className="flex-1 flex items-start justify-center" style={{ paddingTop: "calc(50vh - 100px)" }}>
           <p className="text-muted-foreground text-xs tracking-[0.2em] uppercase">
-            Nessuna skill registrata
+            No skills registered
           </p>
         </div>
       ) : (

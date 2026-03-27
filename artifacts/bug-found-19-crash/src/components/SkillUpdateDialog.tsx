@@ -32,13 +32,13 @@ const SkillUpdateDialog = ({ open, skillName, onClose, onConfirm }: SkillUpdateD
               <div className="border-b border-primary/20 px-3 py-1.5 flex items-center gap-2">
                 <div className="w-1.5 h-1.5 bg-primary rotate-45 animate-pulse" />
                 <span className="text-primary text-[9px] font-semibold tracking-[0.2em] uppercase glow-text">
-                  Aggiorna Skill
+                  Update Skill
                 </span>
                 <div className="flex-1 h-px bg-gradient-to-r from-primary/30 to-transparent" />
               </div>
               <div className="p-4 text-center">
                 <p className="font-rajdhani text-xs text-muted-foreground tracking-wider uppercase mb-1">
-                  Confermi l'aggiornamento di
+                  Confirm update of
                 </p>
                 <p className="font-rajdhani font-bold text-sm text-primary glow-text tracking-wider uppercase">
                   {skillName}
@@ -49,13 +49,13 @@ const SkillUpdateDialog = ({ open, skillName, onClose, onConfirm }: SkillUpdateD
                   onClick={onClose}
                   className="flex-1 font-rajdhani font-bold text-[10px] tracking-[0.1em] uppercase border border-muted-foreground/30 text-muted-foreground py-1.5 hover:bg-muted-foreground/10 transition-all"
                 >
-                  Annulla
+                  Cancel
                 </button>
                 <button
                   onClick={onConfirm}
                   className="flex-1 font-rajdhani font-bold text-[10px] tracking-[0.1em] uppercase border border-primary/50 text-primary bg-primary/10 py-1.5 hover:bg-primary/20 hover:border-primary transition-all"
                 >
-                  Aggiorna
+                  Update
                 </button>
               </div>
             </div>

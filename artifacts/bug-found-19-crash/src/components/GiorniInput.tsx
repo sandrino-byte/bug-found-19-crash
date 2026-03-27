@@ -11,7 +11,7 @@ const GiorniInput: React.FC<GiorniInputProps> = ({ value, onChange, onIncrement,
   return (
     <div className="flex flex-col gap-1">
       <label className="text-primary/70 text-[8px] font-semibold tracking-[0.2em] uppercase text-center">
-        Giorni
+        Days
       </label>
       <div className="flex items-center gap-1">
         <button

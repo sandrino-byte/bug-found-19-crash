@@ -43,7 +43,7 @@ const SkillNameDialog = ({ open, onClose, onSave }: SkillNameDialogProps) => {
           >
             <div className="panel-chamfer bg-card p-4 space-y-3">
               <p className="font-rajdhani font-semibold text-xs tracking-[0.2em] uppercase text-primary glow-text text-center">
-                Inserire nome skill
+                Enter skill name
               </p>
               <input
                 autoFocus
@@ -54,21 +54,21 @@ const SkillNameDialog = ({ open, onClose, onSave }: SkillNameDialogProps) => {
                   if (e.key === "Escape") handleCancel();
                 }}
                 className="w-full input-system font-rajdhani text-sm text-foreground placeholder:text-muted-foreground/50 px-0 py-1"
-                placeholder="Nome..."
+                placeholder="Name..."
               />
               <div className="flex gap-2 pt-1">
                 <button
                   onClick={handleCancel}
                   className="flex-1 font-rajdhani font-bold text-[10px] tracking-[0.1em] uppercase border border-muted-foreground/30 text-muted-foreground py-1.5 hover:bg-muted-foreground/10 transition-all"
                 >
-                  Annulla
+                  Cancel
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={!name.trim()}
                   className="flex-1 font-rajdhani font-bold text-[10px] tracking-[0.1em] uppercase border border-primary/50 text-primary bg-primary/10 py-1.5 hover:bg-primary/20 hover:border-primary transition-all disabled:opacity-40"
                 >
-                  Salva
+                  Save
                 </button>
               </div>
             </div>
