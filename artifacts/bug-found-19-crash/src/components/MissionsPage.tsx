@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, Circle, Plus, Trash2 } from "lucide-react";
 import type { Mission, MissionType } from "@/types/mission";
@@ -137,7 +138,7 @@ const AddMissionDialog = ({
     if (name.trim()) { onAdd(name.trim()); setName(""); }
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -184,7 +185,8 @@ const AddMissionDialog = ({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
 
@@ -332,11 +334,11 @@ const MissionsPage = () => {
         )}
       </div>
 
-      {/* Add button */}
+      {/* Add button — absolute so it stays inside the missions page only */}
       <motion.button
         whileTap={{ scale: 0.92 }}
         onClick={() => setShowAddDialog(true)}
-        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-5 py-2.5 font-rajdhani font-bold text-xs tracking-[0.2em] uppercase border panel-chamfer transition-all"
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-5 py-2.5 font-rajdhani font-bold text-xs tracking-[0.2em] uppercase border panel-chamfer transition-all"
         style={{
           color,
           borderColor: color + "60",
