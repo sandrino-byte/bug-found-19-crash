@@ -7,7 +7,8 @@ interface VerticalPagesProps {
   onPageChange?: (page: number) => void;
 }
 
-const DRAG_THRESHOLD = 80;
+const DRAG_THRESHOLD = 45;
+const VELOCITY_THRESHOLD = 200;
 
 const VerticalPages = ({ children, pageLabels, onPageChange }: VerticalPagesProps) => {
   const [currentPage, setCurrentPage] = useState(0);
@@ -20,14 +21,29 @@ const VerticalPages = ({ children, pageLabels, onPageChange }: VerticalPagesProp
     onPageChange?.(currentPage);
   }, [currentPage, onPageChange]);
 
+  // Keyboard navigation: arrow up/down + page up/down
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+      if (e.key === "ArrowDown" || e.key === "PageDown") {
+        if (currentPage < totalPages - 1) { e.preventDefault(); setCurrentPage((p) => p + 1); }
+      } else if (e.key === "ArrowUp" || e.key === "PageUp") {
+        if (currentPage > 0) { e.preventDefault(); setCurrentPage((p) => p - 1); }
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [currentPage, totalPages]);
+
   const handleDragEnd = useCallback(
     (_: any, info: { offset: { y: number }; velocity: { y: number } }) => {
       const { y: offsetY } = info.offset;
       const { y: velocityY } = info.velocity;
 
-      if ((offsetY < -DRAG_THRESHOLD || velocityY < -300) && currentPage < totalPages - 1) {
+      if ((offsetY < -DRAG_THRESHOLD || velocityY < -VELOCITY_THRESHOLD) && currentPage < totalPages - 1) {
         setCurrentPage((p) => p + 1);
-      } else if ((offsetY > DRAG_THRESHOLD || velocityY > 300) && currentPage > 0) {
+      } else if ((offsetY > DRAG_THRESHOLD || velocityY > VELOCITY_THRESHOLD) && currentPage > 0) {
         setCurrentPage((p) => p - 1);
       }
 
@@ -62,7 +78,7 @@ const VerticalPages = ({ children, pageLabels, onPageChange }: VerticalPagesProp
 
     if (wheelLockRef.current) return;
     wheelLockRef.current = true;
-    setTimeout(() => { wheelLockRef.current = false; }, 650);
+    setTimeout(() => { wheelLockRef.current = false; }, 600);
 
     if (e.deltaY > 0 && currentPage < totalPages - 1) {
       setCurrentPage((p) => p + 1);
@@ -84,6 +100,7 @@ const VerticalPages = ({ children, pageLabels, onPageChange }: VerticalPagesProp
         drag="y"
         dragConstraints={{ top: 0, bottom: 0 }}
         dragElastic={0}
+        dragMomentum={false}
         onDragEnd={handleDragEnd}
         className="h-screen w-screen touch-none"
       >
@@ -100,47 +117,51 @@ const VerticalPages = ({ children, pageLabels, onPageChange }: VerticalPagesProp
         </motion.div>
       </motion.div>
 
-      {/* Page navigation menu — clearly visible labeled buttons */}
-      <div className="fixed right-2 top-1/2 -translate-y-1/2 z-[70] flex flex-col gap-1.5 select-none">
+      {/* Vertical navigation menu — uniform, always-labeled buttons */}
+      <nav
+        className="fixed right-2.5 top-1/2 -translate-y-1/2 z-[70] flex flex-col gap-1 select-none"
+        aria-label="Page navigation"
+      >
         {children.map((_, i) => {
           const isActive = i === currentPage;
           const label = pageLabels?.[i] ?? `Page ${i + 1}`;
           return (
             <button
               key={i}
+              type="button"
               onClick={(e) => { e.stopPropagation(); goTo(i); }}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-current={isActive ? "page" : undefined}
               aria-label={`Go to ${label}`}
-              className="group flex items-center gap-2 cursor-pointer"
+              className="group flex items-center gap-2 px-2 py-1.5 w-[112px] justify-end transition-all duration-200 hover:bg-primary/5"
+              style={{
+                background: isActive ? "hsl(187 92% 53% / 0.08)" : undefined,
+                clipPath: "polygon(8px 0%, 100% 0%, 100% 100%, 0% 100%, 0% 8px)",
+              }}
             >
-              {/* Label — always visible for active, fades in on hover for inactive */}
               <span
-                className={`font-rajdhani font-semibold text-[9px] tracking-[0.2em] uppercase whitespace-nowrap transition-all duration-200 ${
-                  isActive
-                    ? "opacity-100 translate-x-0"
-                    : "opacity-0 translate-x-1 group-hover:opacity-80 group-hover:translate-x-0"
-                }`}
+                className="font-rajdhani font-bold text-[10px] tracking-[0.22em] uppercase whitespace-nowrap transition-colors duration-200"
                 style={{
-                  color: isActive ? "hsl(187 92% 65%)" : "hsl(220 15% 70%)",
-                  textShadow: isActive ? "0 0 6px hsl(187 92% 53% / 0.5)" : "none",
+                  color: isActive ? "hsl(187 92% 70%)" : "hsl(220 15% 55%)",
+                  textShadow: isActive ? "0 0 6px hsl(187 92% 53% / 0.6)" : "none",
                 }}
               >
                 {label}
               </span>
-              {/* Diamond pip */}
-              <div
-                className="rotate-45 transition-all duration-200"
+              <span
+                className="rotate-45 transition-all duration-200 group-hover:scale-110"
                 style={{
-                  width:  isActive ? 10 : 7,
-                  height: isActive ? 10 : 7,
-                  background: isActive ? "hsl(187 92% 53% / 0.35)" : "transparent",
-                  border: `1.5px solid ${isActive ? "hsl(187 92% 53%)" : "hsl(220 15% 35%)"}`,
-                  boxShadow: isActive ? "0 0 10px hsl(187 92% 53% / 0.8)" : "none",
+                  width:  isActive ? 9 : 7,
+                  height: isActive ? 9 : 7,
+                  background: isActive ? "hsl(187 92% 53%)" : "transparent",
+                  border: `1.5px solid ${isActive ? "hsl(187 92% 53%)" : "hsl(220 15% 40%)"}`,
+                  boxShadow: isActive ? "0 0 8px hsl(187 92% 53% / 0.9)" : "none",
                 }}
               />
             </button>
           );
         })}
-      </div>
+      </nav>
     </div>
   );
 };
