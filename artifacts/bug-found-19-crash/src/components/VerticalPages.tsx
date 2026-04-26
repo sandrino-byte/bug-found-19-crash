@@ -90,67 +90,26 @@ const VerticalPages = ({ children, pageLabels, onPageChange }: VerticalPagesProp
         ))}
       </div>
 
-      {/* Vertical navigation menu — pips always visible, label fades in on change/hover */}
-      <nav
-        className="fixed right-3 top-1/2 -translate-y-1/2 z-[70] flex flex-col gap-2 select-none"
-        aria-label="Page navigation"
-      >
-        {children.map((_, i) => {
-          const isActive = i === currentPage;
-          const label = pageLabels?.[i] ?? `Page ${i + 1}`;
-          return (
-            <button
-              key={i}
-              type="button"
-              onClick={(e) => { e.stopPropagation(); goTo(i); }}
-              aria-current={isActive ? "page" : undefined}
-              aria-label={`Go to ${label}`}
-              className="group flex items-center gap-2 cursor-pointer"
-            >
-              {/* Label — fades in on hover for any button, OR briefly when active page changes */}
-              <AnimatePresence>
-                {((isActive && labelVisible)) && (
-                  <motion.span
-                    key="active-label"
-                    initial={{ opacity: 0, x: 6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 6 }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                    className="font-rajdhani font-bold text-[10px] tracking-[0.22em] uppercase whitespace-nowrap"
-                    style={{
-                      color: "hsl(187 92% 70%)",
-                      textShadow: "0 0 6px hsl(187 92% 53% / 0.6)",
-                    }}
-                  >
-                    {label}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-              {/* Hover-only label (any button) — separate so it can coexist */}
-              {!(isActive && labelVisible) && (
-                <span
-                  className="font-rajdhani font-bold text-[10px] tracking-[0.22em] uppercase whitespace-nowrap opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all duration-200"
-                  style={{ color: isActive ? "hsl(187 92% 70%)" : "hsl(220 15% 65%)" }}
-                  aria-hidden="true"
-                >
-                  {label}
-                </span>
-              )}
-              {/* Diamond pip — always visible */}
-              <span
-                className="rotate-45 transition-all duration-200 group-hover:scale-110"
-                style={{
-                  width:  isActive ? 10 : 7,
-                  height: isActive ? 10 : 7,
-                  background: isActive ? "hsl(187 92% 53% / 0.35)" : "transparent",
-                  border: `1.5px solid ${isActive ? "hsl(187 92% 53%)" : "hsl(220 15% 38%)"}`,
-                  boxShadow: isActive ? "0 0 9px hsl(187 92% 53% / 0.85)" : "none",
-                }}
-              />
-            </button>
-          );
-        })}
-      </nav>
+      {/* Active page label — appears briefly when page changes, then fades out */}
+      <AnimatePresence>
+        {labelVisible && pageLabels?.[currentPage] && (
+          <motion.div
+            key={`label-${currentPage}`}
+            initial={{ opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 8 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="fixed right-4 top-1/2 -translate-y-1/2 z-[70] pointer-events-none select-none font-rajdhani font-bold text-[11px] tracking-[0.3em] uppercase whitespace-nowrap"
+            style={{
+              color: "hsl(187 92% 70%)",
+              textShadow: "0 0 8px hsl(187 92% 53% / 0.6)",
+              writingMode: "vertical-rl",
+            }}
+          >
+            {pageLabels[currentPage]}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
