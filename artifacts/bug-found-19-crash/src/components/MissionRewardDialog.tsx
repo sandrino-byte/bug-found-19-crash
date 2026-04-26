@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus, Coins, Gem, Skull, Trophy } from "lucide-react";
+import { Plus, Minus, Coins, Gem, Skull, Trophy, Dumbbell } from "lucide-react";
 import type { MissionType, MissionRewards } from "@/types/mission";
-import { DEFAULT_REWARDS } from "@/types/mission";
+import { DEFAULT_REWARDS, round1 } from "@/types/mission";
 
 interface MissionRewardDialogProps {
   open: boolean;
@@ -19,6 +19,7 @@ const StepperRow = ({
   value,
   onChange,
   step,
+  decimal,
   color,
   icon,
 }: {
@@ -26,13 +27,29 @@ const StepperRow = ({
   value: number;
   onChange: (v: number) => void;
   step: number;
+  decimal?: boolean;
   color: string;
   icon: React.ReactNode;
 }) => {
-  const handleInput = (raw: string) => {
-    const cleaned = raw.replace(/[^\d]/g, "");
-    onChange(cleaned === "" ? 0 : parseInt(cleaned, 10));
+  // Local string state allows typing partial decimals like "0."
+  const [text, setText] = useState<string>(decimal ? (value % 1 === 0 ? String(value) : value.toFixed(1)) : String(value));
+
+  useEffect(() => {
+    setText(decimal ? (value % 1 === 0 ? String(value) : value.toFixed(1)) : String(value));
+  }, [value, decimal]);
+
+  const commit = (raw: string) => {
+    const cleaned = raw.replace(decimal ? /[^\d.]/g : /[^\d]/g, "");
+    const parts = cleaned.split(".");
+    const finalStr = parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : cleaned;
+    setText(finalStr);
+    if (finalStr === "" || finalStr === ".") return;
+    const parsed = parseFloat(finalStr);
+    if (!isNaN(parsed)) onChange(decimal ? round1(parsed) : Math.floor(parsed));
   };
+
+  const inc = () => onChange(decimal ? round1(value + step) : value + step);
+  const dec = () => onChange(decimal ? Math.max(0, round1(value - step)) : Math.max(0, value - step));
 
   return (
     <div className="flex items-center justify-between gap-2 py-1.5">
@@ -44,21 +61,27 @@ const StepperRow = ({
       </div>
       <div className="flex items-center gap-1">
         <button
-          onClick={() => onChange(Math.max(0, value - step))}
+          onClick={dec}
           className="w-6 h-6 flex items-center justify-center border border-muted-foreground/30 text-muted-foreground hover:border-foreground/50 hover:text-foreground transition-all"
         >
           <Minus size={11} />
         </button>
         <input
           type="text"
-          inputMode="numeric"
-          value={value}
-          onChange={(e) => handleInput(e.target.value)}
+          inputMode={decimal ? "decimal" : "numeric"}
+          value={text}
+          onChange={(e) => commit(e.target.value)}
+          onBlur={() => {
+            if (text === "" || text === ".") {
+              setText("0");
+              onChange(0);
+            }
+          }}
           className="w-14 text-center font-rajdhani font-bold text-sm tabular-nums bg-transparent border border-border py-0.5 focus:outline-none focus:border-primary/60"
           style={{ color }}
         />
         <button
-          onClick={() => onChange(value + step)}
+          onClick={inc}
           className="w-6 h-6 flex items-center justify-center border border-muted-foreground/30 text-muted-foreground hover:border-foreground/50 hover:text-foreground transition-all"
         >
           <Plus size={11} />
@@ -79,18 +102,28 @@ const MissionRewardDialog = ({
   const defaults = DEFAULT_REWARDS[type];
   const [gold, setGold] = useState(defaults.gold);
   const [crystals, setCrystals] = useState(defaults.crystals);
-  const [penalty, setPenalty] = useState(defaults.goldPenalty);
+  const [goldPenalty, setGoldPenalty] = useState(defaults.goldPenalty);
+  const [crystalPenalty, setCrystalPenalty] = useState(defaults.crystalPenalty);
+  const [fatiguePenalty, setFatiguePenalty] = useState(defaults.fatiguePenalty);
 
   useEffect(() => {
     if (open) {
       setGold(defaults.gold);
       setCrystals(defaults.crystals);
-      setPenalty(defaults.goldPenalty);
+      setGoldPenalty(defaults.goldPenalty);
+      setCrystalPenalty(defaults.crystalPenalty);
+      setFatiguePenalty(defaults.fatiguePenalty);
     }
   }, [open, defaults]);
 
   const handleConfirm = () => {
-    onConfirm({ gold, crystals, goldPenalty: penalty });
+    onConfirm({
+      gold,
+      crystals,
+      goldPenalty,
+      crystalPenalty,
+      fatiguePenalty: fatiguePenalty.trim(),
+    });
   };
 
   return createPortal(
@@ -109,7 +142,7 @@ const MissionRewardDialog = ({
             exit={{ opacity: 0, scale: 0.92, y: 10 }}
             transition={{ duration: 0.16 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-80 panel-chamfer bg-card p-[1px]"
+            className="w-80 max-h-[88vh] overflow-y-auto panel-chamfer bg-card p-[1px]"
             style={{ boxShadow: `0 0 30px ${color}30` }}
           >
             <div className="panel-chamfer bg-card scanlines">
@@ -148,7 +181,7 @@ const MissionRewardDialog = ({
                   label="Gold"
                   value={gold}
                   onChange={setGold}
-                  step={50}
+                  step={1}
                   color="hsl(45 93% 58%)"
                   icon={<Coins size={12} style={{ color: "hsl(45 93% 58%)" }} />}
                 />
@@ -156,32 +189,63 @@ const MissionRewardDialog = ({
                   label="Blue Crystals"
                   value={crystals}
                   onChange={setCrystals}
-                  step={1}
+                  step={0.1}
+                  decimal
                   color="hsl(187 92% 53%)"
                   icon={<Gem size={12} style={{ color: "hsl(187 92% 53%)" }} />}
                 />
               </div>
 
-              {/* Penalty section */}
+              {/* Penalty: Fatigue */}
+              <div className="px-4 pt-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Dumbbell size={12} style={{ color: "hsl(25 90% 60%)" }} />
+                  <span className="text-[9px] tracking-[0.2em] uppercase font-semibold" style={{ color: "hsl(25 90% 60%)" }}>
+                    Fatigue Penalty
+                  </span>
+                  <div className="flex-1 h-px" style={{ background: "hsl(25 90% 60% / 0.2)" }} />
+                </div>
+                <input
+                  type="text"
+                  value={fatiguePenalty}
+                  onChange={(e) => setFatiguePenalty(e.target.value)}
+                  placeholder="e.g. 50 push-ups, 5 km run..."
+                  className="w-full input-system font-rajdhani text-xs text-foreground placeholder:text-muted-foreground/40 px-0 py-1"
+                />
+                <p className="text-[8px] tracking-wider text-muted-foreground/60 italic mt-0.5">
+                  Physical task you must complete if the mission fails
+                </p>
+              </div>
+
+              {/* Penalty: Economic */}
               <div className="px-4 pt-3 pb-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Skull size={12} style={{ color: "hsl(0 84% 55%)" }} />
                   <span className="text-[9px] tracking-[0.2em] uppercase text-destructive/80 font-semibold">
-                    Penalty on Failure
+                    Economic Penalty
                   </span>
                   <div className="flex-1 h-px bg-destructive/20" />
                 </div>
                 <StepperRow
                   label="Gold Lost"
-                  value={penalty}
-                  onChange={setPenalty}
-                  step={25}
+                  value={goldPenalty}
+                  onChange={setGoldPenalty}
+                  step={1}
                   color="hsl(0 84% 60%)"
                   icon={<Coins size={12} style={{ color: "hsl(0 84% 60%)" }} />}
                 />
+                <StepperRow
+                  label="Crystals Lost"
+                  value={crystalPenalty}
+                  onChange={setCrystalPenalty}
+                  step={0.1}
+                  decimal
+                  color="hsl(0 84% 60%)"
+                  icon={<Gem size={12} style={{ color: "hsl(0 84% 60%)" }} />}
+                />
                 {type === "special" && (
                   <p className="text-[9px] tracking-wider text-muted-foreground/60 italic mt-1">
-                    Special missions have no time limit — penalty triggers only if you mark it failed.
+                    Special missions have no time limit — penalties trigger only if you mark it failed.
                   </p>
                 )}
               </div>

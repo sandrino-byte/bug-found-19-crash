@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, XCircle, Circle, Plus, Trash2, Coins, Gem, Skull } from "lucide-react";
+import { CheckCircle2, XCircle, Circle, Plus, Trash2, Coins, Gem, Skull, Dumbbell } from "lucide-react";
 import type { Mission, MissionType, MissionRewards } from "@/types/mission";
-import { getDeadline, processMissionExpiry } from "@/types/mission";
+import { getDeadline, processMissionExpiry, normalizeMission } from "@/types/mission";
+import { formatCrystals } from "@/types/resources";
 import AddMissionNameDialog from "@/components/AddMissionNameDialog";
 import MissionRewardDialog from "@/components/MissionRewardDialog";
 import CountdownTimer from "@/components/CountdownTimer";
@@ -25,7 +26,7 @@ const TAB_COLORS: Record<MissionType, string> = {
 
 interface MissionsPageProps {
   onReward: (gold: number, crystals: number) => void;
-  onPenalty: (gold: number) => void;
+  onPenalty: (gold: number, crystals: number) => void;
 }
 
 const MissionItem = ({
@@ -104,24 +105,59 @@ const MissionItem = ({
             <p className="text-[9px] tracking-[0.2em] uppercase text-green-400/70 mt-1 font-semibold">Completed</p>
           )}
 
-          {/* Reward / penalty chips */}
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {mission.goldReward > 0 && (
-              <span className="flex items-center gap-0.5 text-[9px] tabular-nums" style={{ color: "hsl(45 93% 58%)" }}>
-                <Coins size={9} /> +{mission.goldReward}
+          {/* Reward chips */}
+          {isActive && (mission.goldReward > 0 || mission.crystalReward > 0) && (
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              {mission.goldReward > 0 && (
+                <span className="flex items-center gap-0.5 text-[9px] tabular-nums" style={{ color: "hsl(45 93% 58%)" }}>
+                  <Coins size={9} /> +{mission.goldReward}
+                </span>
+              )}
+              {mission.crystalReward > 0 && (
+                <span className="flex items-center gap-0.5 text-[9px] tabular-nums" style={{ color: "hsl(187 92% 53%)" }}>
+                  <Gem size={9} /> +{formatCrystals(mission.crystalReward)}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Penalty chips on active card */}
+          {isActive && (mission.goldPenalty > 0 || mission.crystalPenalty > 0 || mission.fatiguePenalty) && (
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {mission.goldPenalty > 0 && (
+                <span className="flex items-center gap-0.5 text-[9px] tabular-nums" style={{ color: "hsl(0 84% 60%)" }}>
+                  <Skull size={9} /> -{mission.goldPenalty}
+                </span>
+              )}
+              {mission.crystalPenalty > 0 && (
+                <span className="flex items-center gap-0.5 text-[9px] tabular-nums" style={{ color: "hsl(0 84% 60%)" }}>
+                  <Gem size={9} /> -{formatCrystals(mission.crystalPenalty)}
+                </span>
+              )}
+              {mission.fatiguePenalty && (
+                <span className="flex items-center gap-0.5 text-[9px]" style={{ color: "hsl(25 90% 60%)" }}>
+                  <Dumbbell size={9} /> {mission.fatiguePenalty}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Fatigue alert on failed card */}
+          {isFailed && mission.fatiguePenalty && (
+            <div
+              className="mt-1.5 px-2 py-1 border flex items-center gap-1.5"
+              style={{
+                background: "hsl(25 90% 60% / 0.10)",
+                borderColor: "hsl(25 90% 60% / 0.4)",
+                color: "hsl(25 90% 65%)",
+              }}
+            >
+              <Dumbbell size={11} />
+              <span className="font-rajdhani font-semibold text-[10px] tracking-wider uppercase">
+                Fatigue: {mission.fatiguePenalty}
               </span>
-            )}
-            {mission.crystalReward > 0 && (
-              <span className="flex items-center gap-0.5 text-[9px] tabular-nums" style={{ color: "hsl(187 92% 53%)" }}>
-                <Gem size={9} /> +{mission.crystalReward}
-              </span>
-            )}
-            {mission.goldPenalty > 0 && (
-              <span className="flex items-center gap-0.5 text-[9px] tabular-nums" style={{ color: "hsl(0 84% 60%)" }}>
-                <Skull size={9} /> -{mission.goldPenalty}
-              </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Delete */}
@@ -150,8 +186,8 @@ const MissionsPage = ({ onReward, onPenalty }: MissionsPageProps) => {
   const [missions, setMissions] = useState<Mission[]>(() => {
     try {
       const saved = localStorage.getItem(MISSIONS_KEY);
-      const parsed: Mission[] = saved ? JSON.parse(saved) : [];
-      return parsed;
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed.map(normalizeMission) : [];
     } catch { return []; }
   });
 
@@ -167,7 +203,9 @@ const MissionsPage = ({ onReward, onPenalty }: MissionsPageProps) => {
         const { missions: updated, newlyFailed } = processMissionExpiry(prev);
         if (newlyFailed.length > 0) {
           for (const m of newlyFailed) {
-            if (m.goldPenalty > 0) onPenaltyRef.current(m.goldPenalty);
+            if (m.goldPenalty > 0 || m.crystalPenalty > 0) {
+              onPenaltyRef.current(m.goldPenalty, m.crystalPenalty);
+            }
           }
         }
         return updated;
@@ -200,6 +238,8 @@ const MissionsPage = ({ onReward, onPenalty }: MissionsPageProps) => {
       goldReward: rewards.gold,
       crystalReward: rewards.crystals,
       goldPenalty: rewards.goldPenalty,
+      crystalPenalty: rewards.crystalPenalty,
+      fatiguePenalty: rewards.fatiguePenalty,
       rewardClaimed: false,
       penaltyApplied: false,
     };
@@ -211,7 +251,6 @@ const MissionsPage = ({ onReward, onPenalty }: MissionsPageProps) => {
   const handleComplete = useCallback((id: string) => {
     setMissions((prev) => prev.map((m) => {
       if (m.id !== id || m.completed || m.failed) return m;
-      // Award rewards once
       if (!m.rewardClaimed) {
         onReward(m.goldReward, m.crystalReward);
       }

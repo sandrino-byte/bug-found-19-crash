@@ -4,7 +4,7 @@ import { Coins, Gem, ShoppingBag, Check, Package } from "lucide-react";
 import type { Resources } from "@/types/resources";
 import type { ShopItem, InventoryEntry } from "@/types/shop";
 import { SHOP_ITEMS } from "@/types/shop";
-import { formatNumber } from "@/types/resources";
+import { formatGold, formatCrystals } from "@/types/resources";
 
 const INVENTORY_KEY = "inventory_data";
 
@@ -134,7 +134,7 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <CurrencyIcon size={11} style={{ color: currencyColor }} />
                       <span className="font-rajdhani font-bold text-xs tabular-nums" style={{ color: currencyColor }}>
-                        {formatNumber(item.price)}
+                        {item.currency === "gold" ? formatGold(item.price) : formatCrystals(item.price)}
                       </span>
                     </div>
 

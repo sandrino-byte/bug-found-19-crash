@@ -110,17 +110,19 @@ const Index = () => {
   }, []);
 
   // ── Resources handlers ──
+  const round1 = (n: number) => Math.round(n * 10) / 10;
+
   const handleMissionReward = useCallback((gold: number, crystals: number) => {
     setResources((prev) => ({
       gold:     prev.gold + gold,
-      crystals: prev.crystals + crystals,
+      crystals: round1(prev.crystals + crystals),
     }));
   }, []);
 
-  const handleMissionPenalty = useCallback((gold: number) => {
+  const handleMissionPenalty = useCallback((gold: number, crystals: number) => {
     setResources((prev) => ({
-      ...prev,
-      gold: Math.max(0, prev.gold - gold),
+      gold:     Math.max(0, prev.gold - gold),
+      crystals: Math.max(0, round1(prev.crystals - crystals)),
     }));
   }, []);
 

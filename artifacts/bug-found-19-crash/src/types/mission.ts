@@ -12,6 +12,8 @@ export interface Mission {
   goldReward: number;
   crystalReward: number;
   goldPenalty: number;
+  crystalPenalty: number;
+  fatiguePenalty: string;
   rewardClaimed: boolean;
   penaltyApplied: boolean;
 }
@@ -20,13 +22,15 @@ export interface MissionRewards {
   gold: number;
   crystals: number;
   goldPenalty: number;
+  crystalPenalty: number;
+  fatiguePenalty: string;
 }
 
 export const DEFAULT_REWARDS: Record<MissionType, MissionRewards> = {
-  daily:   { gold: 50,   crystals: 0, goldPenalty: 25 },
-  weekly:  { gold: 200,  crystals: 1, goldPenalty: 100 },
-  monthly: { gold: 1000, crystals: 5, goldPenalty: 500 },
-  special: { gold: 500,  crystals: 2, goldPenalty: 0 },
+  daily:   { gold: 50,   crystals: 0,   goldPenalty: 25,  crystalPenalty: 0,   fatiguePenalty: "" },
+  weekly:  { gold: 200,  crystals: 1,   goldPenalty: 100, crystalPenalty: 0.5, fatiguePenalty: "" },
+  monthly: { gold: 1000, crystals: 5,   goldPenalty: 500, crystalPenalty: 2,   fatiguePenalty: "" },
+  special: { gold: 500,  crystals: 2,   goldPenalty: 0,   crystalPenalty: 0,   fatiguePenalty: "" },
 };
 
 export const getDeadline = (type: MissionType): string | null => {
@@ -66,10 +70,24 @@ export const processMissionExpiry = (missions: Mission[]): ExpiryResult => {
   return { missions: updated, newlyFailed };
 };
 
-/** Backwards-compatible helper for mounting an old store */
-export const checkAndFailMissions = (missions: Mission[]): Mission[] => {
-  return processMissionExpiry(missions).missions;
-};
+/** Backfill missing fields from older stored missions */
+export const normalizeMission = (m: Partial<Mission> & { id: string; name: string; type: MissionType }): Mission => ({
+  id: m.id,
+  name: m.name,
+  type: m.type,
+  completed: m.completed ?? false,
+  failed: m.failed ?? false,
+  createdAt: m.createdAt ?? new Date().toISOString(),
+  deadline: m.deadline ?? null,
+  completedAt: m.completedAt ?? null,
+  goldReward: m.goldReward ?? 0,
+  crystalReward: m.crystalReward ?? 0,
+  goldPenalty: m.goldPenalty ?? 0,
+  crystalPenalty: m.crystalPenalty ?? 0,
+  fatiguePenalty: m.fatiguePenalty ?? "",
+  rewardClaimed: m.rewardClaimed ?? false,
+  penaltyApplied: m.penaltyApplied ?? false,
+});
 
 export const formatCountdown = (deadlineMs: number): string => {
   const ms = deadlineMs - Date.now();
@@ -82,3 +100,5 @@ export const formatCountdown = (deadlineMs: number): string => {
   if (days > 0) return `${days}d : ${pad(hours)}h : ${pad(minutes)}m : ${pad(seconds)}s`;
   return `${pad(hours)}h : ${pad(minutes)}m : ${pad(seconds)}s`;
 };
+
+export const round1 = (n: number): number => Math.round(n * 10) / 10;

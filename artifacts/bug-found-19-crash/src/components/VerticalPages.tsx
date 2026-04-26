@@ -11,6 +11,7 @@ const DRAG_THRESHOLD = 80;
 const VerticalPages = ({ children, onPageChange }: VerticalPagesProps) => {
   const [currentPage, setCurrentPage] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const wheelLockRef = useRef(false);
   const y = useMotionValue(0);
   const totalPages = children.length;
 
@@ -43,8 +44,40 @@ const VerticalPages = ({ children, onPageChange }: VerticalPagesProps) => {
     return sign * Math.min(abs, maxDrag) * (1 - (Math.min(abs, maxDrag) / maxDrag) * 0.5);
   });
 
+  // Wheel navigation: respects nested scrollable areas first
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (Math.abs(e.deltaY) < 8) return;
+    let el: HTMLElement | null = e.target as HTMLElement;
+    while (el && el !== e.currentTarget) {
+      const overflow = window.getComputedStyle(el).overflowY;
+      if (overflow === "auto" || overflow === "scroll") {
+        const canScrollDown = el.scrollHeight - el.clientHeight - el.scrollTop > 1;
+        const canScrollUp = el.scrollTop > 1;
+        if (e.deltaY > 0 && canScrollDown) return;
+        if (e.deltaY < 0 && canScrollUp) return;
+      }
+      el = el.parentElement;
+    }
+
+    if (wheelLockRef.current) return;
+    wheelLockRef.current = true;
+    setTimeout(() => { wheelLockRef.current = false; }, 650);
+
+    if (e.deltaY > 0 && currentPage < totalPages - 1) {
+      setCurrentPage((p) => p + 1);
+    } else if (e.deltaY < 0 && currentPage > 0) {
+      setCurrentPage((p) => p - 1);
+    }
+  }, [currentPage, totalPages]);
+
+  const goTo = useCallback((i: number) => setCurrentPage(i), []);
+
   return (
-    <div ref={containerRef} className="h-screen w-screen overflow-hidden relative">
+    <div
+      ref={containerRef}
+      className="h-screen w-screen overflow-hidden relative"
+      onWheel={handleWheel}
+    >
       <motion.div
         style={{ y: resistedY }}
         drag="y"
@@ -66,13 +99,15 @@ const VerticalPages = ({ children, onPageChange }: VerticalPagesProps) => {
         </motion.div>
       </motion.div>
 
-      {/* Page indicators — cyan dots */}
+      {/* Page indicators — clickable cyan dots */}
       <div className="fixed right-3 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-2">
         {children.map((_, i) => (
-          <div
+          <button
             key={i}
-            className={`w-1 transition-all duration-300 ${
-              i === currentPage ? "h-5 bg-primary" : "h-1.5 bg-muted-foreground/30"
+            onClick={() => goTo(i)}
+            aria-label={`Go to page ${i + 1}`}
+            className={`w-1 cursor-pointer transition-all duration-300 ${
+              i === currentPage ? "h-5 bg-primary" : "h-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/60 hover:h-3"
             }`}
             style={{
               boxShadow: i === currentPage ? "0 0 8px hsl(187 92% 53% / 0.6)" : "none",
