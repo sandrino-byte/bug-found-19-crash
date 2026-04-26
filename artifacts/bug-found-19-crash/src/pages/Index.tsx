@@ -5,15 +5,21 @@ import VerticalPages from "@/components/VerticalPages";
 import SkillPage from "@/components/SkillPage";
 import StatsPage from "@/components/StatsPage";
 import MissionsPage from "@/components/MissionsPage";
+import ShopPage from "@/components/ShopPage";
 import XpAnimation from "@/components/XpAnimation";
 import Clock from "@/components/Clock";
 import DateDisplay from "@/components/DateDisplay";
+import ResourcesDisplay from "@/components/ResourcesDisplay";
 import type { Skill, StatType, StatsData } from "@/types/skill";
 import { DEFAULT_STATS } from "@/types/skill";
 import type { XpEvent } from "@/components/XpAnimation";
+import type { Resources } from "@/types/resources";
+import { DEFAULT_RESOURCES } from "@/types/resources";
+import type { ShopItem } from "@/types/shop";
 
 const SKILLS_KEY = "skills_data";
 const STATS_KEY = "stats_data";
+const RESOURCES_KEY = "resources_data";
 
 const Index = () => {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -39,6 +45,16 @@ const Index = () => {
     }
   });
 
+  // ── Resources persistence ──
+  const [resources, setResources] = useState<Resources>(() => {
+    try {
+      const saved = localStorage.getItem(RESOURCES_KEY);
+      return saved ? { ...DEFAULT_RESOURCES, ...JSON.parse(saved) } : { ...DEFAULT_RESOURCES };
+    } catch {
+      return { ...DEFAULT_RESOURCES };
+    }
+  });
+
   const [loadedSkill, setLoadedSkill] = useState<Skill | null>(null);
   const [xpEvents, setXpEvents] = useState<XpEvent[]>([]);
 
@@ -49,6 +65,10 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem(STATS_KEY, JSON.stringify(stats));
   }, [stats]);
+
+  useEffect(() => {
+    localStorage.setItem(RESOURCES_KEY, JSON.stringify(resources));
+  }, [resources]);
 
   // ── Skill CRUD ──
   const handleSkillAdd = useCallback((skill: Skill) => {
@@ -89,10 +109,44 @@ const Index = () => {
     }
   }, []);
 
+  // ── Resources handlers ──
+  const handleMissionReward = useCallback((gold: number, crystals: number) => {
+    setResources((prev) => ({
+      gold:     prev.gold + gold,
+      crystals: prev.crystals + crystals,
+    }));
+  }, []);
+
+  const handleMissionPenalty = useCallback((gold: number) => {
+    setResources((prev) => ({
+      ...prev,
+      gold: Math.max(0, prev.gold - gold),
+    }));
+  }, []);
+
+  const handlePurchase = useCallback((item: ShopItem): boolean => {
+    let purchased = false;
+    setResources((prev) => {
+      const balance = item.currency === "gold" ? prev.gold : prev.crystals;
+      if (balance < item.price) return prev;
+      purchased = true;
+      const next = { ...prev };
+      if (item.currency === "gold") next.gold -= item.price;
+      else next.crystals -= item.price;
+      // Apply instant effect
+      if (item.effect === "instant_gold" && item.effectValue) {
+        next.gold += item.effectValue;
+      }
+      return next;
+    });
+    return purchased;
+  }, []);
+
   return (
     <div className="min-h-screen hex-grid-bg animate-flicker">
       <Clock />
       <DateDisplay />
+      <ResourcesDisplay resources={resources} />
       <WelcomeScreen visible={showWelcome} onDismiss={() => setShowWelcome(false)} />
 
       <XpAnimation events={xpEvents} />
@@ -100,7 +154,8 @@ const Index = () => {
       <VerticalPages onPageChange={setCurrentPage}>
         <SkillPage skills={skills} onDelete={handleSkillDelete} onSkillClick={handleSkillClick} onReorder={handleSkillReorder} />
         <StatsPage stats={stats} />
-        <MissionsPage />
+        <MissionsPage onReward={handleMissionReward} onPenalty={handleMissionPenalty} />
+        <ShopPage resources={resources} onPurchase={handlePurchase} />
       </VerticalPages>
 
       <Calculator

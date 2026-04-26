@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, XCircle, Circle, Plus, Trash2 } from "lucide-react";
-import type { Mission, MissionType } from "@/types/mission";
-import { getDeadline, checkAndFailMissions } from "@/types/mission";
+import { CheckCircle2, XCircle, Circle, Plus, Trash2, Coins, Gem, Skull } from "lucide-react";
+import type { Mission, MissionType, MissionRewards } from "@/types/mission";
+import { getDeadline, processMissionExpiry } from "@/types/mission";
+import AddMissionNameDialog from "@/components/AddMissionNameDialog";
+import MissionRewardDialog from "@/components/MissionRewardDialog";
+import CountdownTimer from "@/components/CountdownTimer";
 
 const MISSIONS_KEY = "missions_data";
 
@@ -21,19 +23,10 @@ const TAB_COLORS: Record<MissionType, string> = {
   special: "hsl(0 84% 60%)",
 };
 
-const formatDeadline = (deadline: string | null, type: MissionType): string => {
-  if (!deadline || type === "special") return "";
-  const d = new Date(deadline);
-  const now = new Date();
-  const diffMs = d.getTime() - now.getTime();
-  if (diffMs <= 0) return "expired";
-  const diffH = Math.floor(diffMs / 3600000);
-  const diffM = Math.floor((diffMs % 3600000) / 60000);
-  if (type === "daily") return `${diffH}h ${diffM}m left`;
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (type === "weekly") return `${diffDays}d left`;
-  return `${diffDays}d left`;
-};
+interface MissionsPageProps {
+  onReward: (gold: number, crystals: number) => void;
+  onPenalty: (gold: number) => void;
+}
 
 const MissionItem = ({
   mission,
@@ -60,11 +53,11 @@ const MissionItem = ({
       className="glow-border bg-card p-[1px]"
       style={{
         clipPath: "polygon(8px 0%, calc(100% - 8px) 0%, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0% calc(100% - 8px), 0% 8px)",
-        opacity: isFailed ? 0.55 : 1,
+        opacity: isFailed ? 0.6 : 1,
       }}
     >
       <div
-        className="bg-card px-3 py-2.5 flex items-center gap-3 relative overflow-hidden"
+        className="bg-card px-3 py-2.5 flex items-start gap-3 relative overflow-hidden"
         style={{
           clipPath: "polygon(8px 0%, calc(100% - 8px) 0%, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0% calc(100% - 8px), 0% 8px)",
         }}
@@ -77,7 +70,7 @@ const MissionItem = ({
         <button
           onClick={() => isActive && onComplete(mission.id)}
           disabled={!isActive}
-          className="flex-shrink-0 transition-transform hover:scale-110 active:scale-95"
+          className="flex-shrink-0 mt-0.5 transition-transform hover:scale-110 active:scale-95"
         >
           {isCompleted ? (
             <CheckCircle2 size={18} style={{ color: "hsl(142 76% 42%)" }} />
@@ -88,30 +81,53 @@ const MissionItem = ({
           )}
         </button>
 
-        {/* Name + deadline */}
+        {/* Body */}
         <div className="flex-1 min-w-0">
           <p className={`font-rajdhani font-semibold text-sm tracking-wider uppercase truncate ${
-            isCompleted ? "line-through text-muted-foreground/50" : isFailed ? "text-destructive/70" : "text-foreground"
+            isCompleted ? "line-through text-muted-foreground/50" : isFailed ? "text-destructive/80" : "text-foreground"
           }`}>
             {mission.name}
           </p>
-          {mission.deadline && isActive && (
-            <p className="text-[9px] tracking-wider uppercase mt-0.5" style={{ color }}>
-              {formatDeadline(mission.deadline, mission.type)}
-            </p>
+
+          {/* Countdown — only for active timed missions */}
+          {isActive && mission.deadline && (
+            <div className="mt-1">
+              <CountdownTimer deadline={mission.deadline} color={color} />
+            </div>
           )}
+
+          {/* Status badges */}
           {isFailed && (
-            <p className="text-[9px] tracking-wider uppercase text-destructive/60 mt-0.5">Failed</p>
+            <p className="text-[9px] tracking-[0.2em] uppercase text-destructive/70 mt-1 font-semibold">Failed</p>
           )}
           {isCompleted && (
-            <p className="text-[9px] tracking-wider uppercase text-green-400/60 mt-0.5">Completed</p>
+            <p className="text-[9px] tracking-[0.2em] uppercase text-green-400/70 mt-1 font-semibold">Completed</p>
           )}
+
+          {/* Reward / penalty chips */}
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {mission.goldReward > 0 && (
+              <span className="flex items-center gap-0.5 text-[9px] tabular-nums" style={{ color: "hsl(45 93% 58%)" }}>
+                <Coins size={9} /> +{mission.goldReward}
+              </span>
+            )}
+            {mission.crystalReward > 0 && (
+              <span className="flex items-center gap-0.5 text-[9px] tabular-nums" style={{ color: "hsl(187 92% 53%)" }}>
+                <Gem size={9} /> +{mission.crystalReward}
+              </span>
+            )}
+            {mission.goldPenalty > 0 && (
+              <span className="flex items-center gap-0.5 text-[9px] tabular-nums" style={{ color: "hsl(0 84% 60%)" }}>
+                <Skull size={9} /> -{mission.goldPenalty}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Delete */}
         <button
           onClick={() => onDelete(mission.id)}
-          className="flex-shrink-0 text-muted-foreground/30 hover:text-destructive/70 transition-colors"
+          className="flex-shrink-0 mt-1 text-muted-foreground/30 hover:text-destructive/70 transition-colors"
         >
           <Trash2 size={12} />
         </button>
@@ -120,85 +136,22 @@ const MissionItem = ({
   );
 };
 
-const AddMissionDialog = ({
-  open,
-  type,
-  onClose,
-  onAdd,
-}: {
-  open: boolean;
-  type: MissionType;
-  onClose: () => void;
-  onAdd: (name: string) => void;
-}) => {
-  const [name, setName] = useState("");
-  const color = TAB_COLORS[type];
-
-  const handleAdd = () => {
-    if (name.trim()) { onAdd(name.trim()); setName(""); }
-  };
-
-  return createPortal(
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-background/80 backdrop-blur-sm"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.125 }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-72 panel-chamfer bg-card p-[1px]"
-            style={{ boxShadow: `0 0 20px ${color}33` }}
-          >
-            <div className="panel-chamfer bg-card p-4 space-y-3">
-              <p className="font-rajdhani font-semibold text-xs tracking-[0.2em] uppercase text-center"
-                style={{ color }}>
-                New {type} mission
-              </p>
-              <input
-                autoFocus
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") onClose(); }}
-                className="w-full input-system font-rajdhani text-sm text-foreground placeholder:text-muted-foreground/40 px-0 py-1"
-                placeholder="Mission name..."
-              />
-              <div className="flex gap-2 pt-1">
-                <button onClick={onClose}
-                  className="flex-1 font-rajdhani font-bold text-[10px] tracking-[0.1em] uppercase border border-muted-foreground/30 text-muted-foreground py-1.5 hover:bg-muted-foreground/10 transition-all">
-                  Cancel
-                </button>
-                <button onClick={handleAdd} disabled={!name.trim()}
-                  className="flex-1 font-rajdhani font-bold text-[10px] tracking-[0.1em] uppercase border py-1.5 transition-all disabled:opacity-40"
-                  style={{ borderColor: color + "80", color, background: color + "1A" }}>
-                  Add
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>,
-    document.body
-  );
-};
-
-const MissionsPage = () => {
+const MissionsPage = ({ onReward, onPenalty }: MissionsPageProps) => {
   const [activeTab, setActiveTab] = useState<MissionType>("daily");
-  const [showAddDialog, setShowAddDialog] = useState(false);
+
+  // Two-step dialog state
+  const [showNameDialog, setShowNameDialog] = useState(false);
+  const [pendingName, setPendingName] = useState<string | null>(null);
+  const [showRewardDialog, setShowRewardDialog] = useState(false);
+
+  const onPenaltyRef = useRef(onPenalty);
+  useEffect(() => { onPenaltyRef.current = onPenalty; }, [onPenalty]);
 
   const [missions, setMissions] = useState<Mission[]>(() => {
     try {
       const saved = localStorage.getItem(MISSIONS_KEY);
       const parsed: Mission[] = saved ? JSON.parse(saved) : [];
-      return checkAndFailMissions(parsed);
+      return parsed;
     } catch { return []; }
   });
 
@@ -207,34 +160,69 @@ const MissionsPage = () => {
     localStorage.setItem(MISSIONS_KEY, JSON.stringify(missions));
   }, [missions]);
 
-  // Check for failures every minute
+  // Tick every second: check expiries + apply penalties
   useEffect(() => {
-    const id = setInterval(() => {
-      setMissions((prev) => checkAndFailMissions(prev));
-    }, 60000);
+    const tick = () => {
+      setMissions((prev) => {
+        const { missions: updated, newlyFailed } = processMissionExpiry(prev);
+        if (newlyFailed.length > 0) {
+          for (const m of newlyFailed) {
+            if (m.goldPenalty > 0) onPenaltyRef.current(m.goldPenalty);
+          }
+        }
+        return updated;
+      });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
 
-  const handleAdd = useCallback((name: string) => {
+  // Step 1: name confirmed
+  const handleNameSubmit = useCallback((name: string) => {
+    setPendingName(name);
+    setShowNameDialog(false);
+    setShowRewardDialog(true);
+  }, []);
+
+  // Step 2: rewards confirmed → create mission
+  const handleRewardConfirm = useCallback((rewards: MissionRewards) => {
+    if (!pendingName) return;
     const mission: Mission = {
       id: crypto.randomUUID(),
-      name,
+      name: pendingName,
       type: activeTab,
       completed: false,
       failed: false,
       createdAt: new Date().toISOString(),
       deadline: getDeadline(activeTab),
       completedAt: null,
+      goldReward: rewards.gold,
+      crystalReward: rewards.crystals,
+      goldPenalty: rewards.goldPenalty,
+      rewardClaimed: false,
+      penaltyApplied: false,
     };
     setMissions((prev) => [...prev, mission]);
-    setShowAddDialog(false);
-  }, [activeTab]);
+    setPendingName(null);
+    setShowRewardDialog(false);
+  }, [pendingName, activeTab]);
 
   const handleComplete = useCallback((id: string) => {
-    setMissions((prev) => prev.map((m) =>
-      m.id === id ? { ...m, completed: true, completedAt: new Date().toISOString() } : m
-    ));
-  }, []);
+    setMissions((prev) => prev.map((m) => {
+      if (m.id !== id || m.completed || m.failed) return m;
+      // Award rewards once
+      if (!m.rewardClaimed) {
+        onReward(m.goldReward, m.crystalReward);
+      }
+      return {
+        ...m,
+        completed: true,
+        completedAt: new Date().toISOString(),
+        rewardClaimed: true,
+      };
+    }));
+  }, [onReward]);
 
   const handleDelete = useCallback((id: string) => {
     setMissions((prev) => prev.filter((m) => m.id !== id));
@@ -334,10 +322,10 @@ const MissionsPage = () => {
         )}
       </div>
 
-      {/* Add button — absolute so it stays inside the missions page only */}
+      {/* Add button */}
       <motion.button
         whileTap={{ scale: 0.92 }}
-        onClick={() => setShowAddDialog(true)}
+        onClick={() => setShowNameDialog(true)}
         className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-5 py-2.5 font-rajdhani font-bold text-xs tracking-[0.2em] uppercase border panel-chamfer transition-all"
         style={{
           color,
@@ -350,11 +338,23 @@ const MissionsPage = () => {
         New {activeTab} mission
       </motion.button>
 
-      <AddMissionDialog
-        open={showAddDialog}
+      {/* Step 1: name dialog */}
+      <AddMissionNameDialog
+        open={showNameDialog}
         type={activeTab}
-        onClose={() => setShowAddDialog(false)}
-        onAdd={handleAdd}
+        color={color}
+        onClose={() => setShowNameDialog(false)}
+        onSubmit={handleNameSubmit}
+      />
+
+      {/* Step 2: rewards/penalty dialog */}
+      <MissionRewardDialog
+        open={showRewardDialog}
+        type={activeTab}
+        missionName={pendingName ?? ""}
+        color={color}
+        onClose={() => { setShowRewardDialog(false); setPendingName(null); }}
+        onConfirm={handleRewardConfirm}
       />
     </div>
   );
