@@ -1,3 +1,20 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+  <rect width="180" height="180" rx="36" fill="#070C18"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#7BE9FF"/>
+      <stop offset="100%" stop-color="#0E5A78"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#glow)">
+    <path d="M90 28 L130 70 L122 132 L90 156 L58 132 L50 70 Z"
+          fill="url(#g)" stroke="#22D3EE" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M50 70 L130 70" stroke="#7BE9FF" stroke-width="2.5" opacity="0.7"/>
+    <path d="M90 28 L90 156" stroke="#CFFAFE" stroke-width="2" opacity="0.85"/>
+    <path d="M70 84 L70 130" stroke="#E0F8FF" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  </g>
 </svg>
