@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useRef } from "react";
 import type { Resources } from "@/types/resources";
 import { formatGold, formatCrystals } from "@/types/resources";
+import CrystalIcon from "@/components/CrystalIcon";
 
 const ResourceCounter = ({
   value,
@@ -71,53 +72,6 @@ const GoldIcon = () => (
   </svg>
 );
 
-/** Raw crystal cluster — three jagged shards bursting from a base, "mine vibes" */
-const CrystalIcon = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    style={{ filter: "drop-shadow(0 0 4px hsl(187 92% 53% / 0.6))" }}
-  >
-    <defs>
-      <linearGradient id="crystShard" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%"   stopColor="hsl(187 92% 75%)" stopOpacity="0.55" />
-        <stop offset="50%"  stopColor="hsl(187 92% 45%)" stopOpacity="0.35" />
-        <stop offset="100%" stopColor="hsl(200 70% 25%)" stopOpacity="0.20" />
-      </linearGradient>
-    </defs>
-    {/* Left shard */}
-    <path
-      d="M2 22 L6 9 L10 14 L8 22 Z"
-      fill="url(#crystShard)"
-      stroke="hsl(187 92% 60%)"
-      strokeWidth="1"
-      strokeLinejoin="round"
-    />
-    {/* Center tall shard */}
-    <path
-      d="M8 22 L13 3 L17 11 L14 22 Z"
-      fill="url(#crystShard)"
-      stroke="hsl(187 92% 70%)"
-      strokeWidth="1"
-      strokeLinejoin="round"
-    />
-    {/* Right shard */}
-    <path
-      d="M14 22 L18 8 L22 14 L20 22 Z"
-      fill="url(#crystShard)"
-      stroke="hsl(187 92% 60%)"
-      strokeWidth="1"
-      strokeLinejoin="round"
-    />
-    {/* Inner facet highlights */}
-    <path d="M6 9 L10 14"  stroke="hsl(187 92% 90%)" strokeWidth="0.4" strokeOpacity="0.7" />
-    <path d="M13 3 L17 11" stroke="hsl(187 92% 90%)" strokeWidth="0.4" strokeOpacity="0.7" />
-    <path d="M18 8 L22 14" stroke="hsl(187 92% 90%)" strokeWidth="0.4" strokeOpacity="0.7" />
-  </svg>
-);
-
 const ResourcesDisplay = ({ resources }: { resources: Resources }) => {
   return (
     <motion.div
@@ -140,7 +94,7 @@ const ResourcesDisplay = ({ resources }: { resources: Resources }) => {
         formatted={formatCrystals(resources.crystals)}
         label="Crystals"
         color="hsl(187 92% 53%)"
-        icon={<CrystalIcon />}
+        icon={<CrystalIcon size={13} color="hsl(187 92% 53%)" />}
         formatDelta={(d) => formatCrystals(Math.abs(d))}
       />
     </motion.div>

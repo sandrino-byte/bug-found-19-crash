@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coins, Gem, ShoppingBag, Check, Package } from "lucide-react";
+import { Coins, ShoppingBag, Check, Package } from "lucide-react";
 import type { Resources } from "@/types/resources";
 import type { ShopItem, InventoryEntry } from "@/types/shop";
 import { SHOP_ITEMS } from "@/types/shop";
 import { formatGold, formatCrystals } from "@/types/resources";
+import CrystalIcon from "@/components/CrystalIcon";
 
 const INVENTORY_KEY = "inventory_data";
 
@@ -112,7 +113,7 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
                 const affordable = canAfford(item);
                 const isPurchasedNow = recentlyPurchased === item.id;
                 const currencyColor = item.currency === "gold" ? "hsl(45 93% 58%)" : "hsl(187 92% 53%)";
-                const CurrencyIcon = item.currency === "gold" ? Coins : Gem;
+                const isGold = item.currency === "gold";
 
                 return (
                   <div
@@ -132,9 +133,12 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
                     </div>
 
                     <div className="flex items-center gap-1 flex-shrink-0">
-                      <CurrencyIcon size={11} style={{ color: currencyColor }} />
+                      {isGold
+                        ? <Coins size={11} style={{ color: currencyColor }} />
+                        : <CrystalIcon size={12} color={currencyColor} glow={false} />
+                      }
                       <span className="font-rajdhani font-bold text-xs tabular-nums" style={{ color: currencyColor }}>
-                        {item.currency === "gold" ? formatGold(item.price) : formatCrystals(item.price)}
+                        {isGold ? formatGold(item.price) : formatCrystals(item.price)}
                       </span>
                     </div>
 

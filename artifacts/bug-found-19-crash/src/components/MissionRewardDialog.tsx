@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus, Coins, Gem, Skull, Trophy, Dumbbell } from "lucide-react";
+import { Plus, Minus, Coins, Skull, Trophy, Dumbbell } from "lucide-react";
 import type { MissionType, MissionRewards } from "@/types/mission";
 import { DEFAULT_REWARDS, round1 } from "@/types/mission";
+import CrystalIcon from "@/components/CrystalIcon";
 
 interface MissionRewardDialogProps {
   open: boolean;
@@ -192,7 +193,7 @@ const MissionRewardDialog = ({
                   step={0.1}
                   decimal
                   color="hsl(187 92% 53%)"
-                  icon={<Gem size={12} style={{ color: "hsl(187 92% 53%)" }} />}
+                  icon={<CrystalIcon size={13} color="hsl(187 92% 53%)" glow={false} />}
                 />
               </div>
 
@@ -241,7 +242,7 @@ const MissionRewardDialog = ({
                   step={0.1}
                   decimal
                   color="hsl(0 84% 60%)"
-                  icon={<Gem size={12} style={{ color: "hsl(0 84% 60%)" }} />}
+                  icon={<CrystalIcon size={13} color="hsl(0 84% 60%)" glow={false} />}
                 />
                 {type === "special" && (
                   <p className="text-[9px] tracking-wider text-muted-foreground/60 italic mt-1">

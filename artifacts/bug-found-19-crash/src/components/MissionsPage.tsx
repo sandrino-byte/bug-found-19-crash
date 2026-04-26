@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, XCircle, Circle, Plus, Trash2, Coins, Gem, Skull, Dumbbell } from "lucide-react";
+import { CheckCircle2, XCircle, Circle, Plus, Trash2, Coins, Skull, Dumbbell } from "lucide-react";
 import type { Mission, MissionType, MissionRewards } from "@/types/mission";
 import { getDeadline, processMissionExpiry, normalizeMission } from "@/types/mission";
 import { formatCrystals } from "@/types/resources";
 import AddMissionNameDialog from "@/components/AddMissionNameDialog";
 import MissionRewardDialog from "@/components/MissionRewardDialog";
 import CountdownTimer from "@/components/CountdownTimer";
+import CrystalIcon from "@/components/CrystalIcon";
 
 const MISSIONS_KEY = "missions_data";
 
@@ -115,7 +116,7 @@ const MissionItem = ({
               )}
               {mission.crystalReward > 0 && (
                 <span className="flex items-center gap-0.5 text-[9px] tabular-nums" style={{ color: "hsl(187 92% 53%)" }}>
-                  <Gem size={9} /> +{formatCrystals(mission.crystalReward)}
+                  <CrystalIcon size={10} color="hsl(187 92% 53%)" glow={false} /> +{formatCrystals(mission.crystalReward)}
                 </span>
               )}
             </div>
@@ -131,7 +132,7 @@ const MissionItem = ({
               )}
               {mission.crystalPenalty > 0 && (
                 <span className="flex items-center gap-0.5 text-[9px] tabular-nums" style={{ color: "hsl(0 84% 60%)" }}>
-                  <Gem size={9} /> -{formatCrystals(mission.crystalPenalty)}
+                  <CrystalIcon size={10} color="hsl(0 84% 60%)" glow={false} /> -{formatCrystals(mission.crystalPenalty)}
                 </span>
               )}
               {mission.fatiguePenalty && (

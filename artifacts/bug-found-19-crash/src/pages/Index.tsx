@@ -153,7 +153,7 @@ const Index = () => {
 
       <XpAnimation events={xpEvents} />
 
-      <VerticalPages onPageChange={setCurrentPage}>
+      <VerticalPages onPageChange={setCurrentPage} pageLabels={["Skills", "Stats", "Missions", "Shop"]}>
         <SkillPage skills={skills} onDelete={handleSkillDelete} onSkillClick={handleSkillClick} onReorder={handleSkillReorder} />
         <StatsPage stats={stats} />
         <MissionsPage onReward={handleMissionReward} onPenalty={handleMissionPenalty} />
