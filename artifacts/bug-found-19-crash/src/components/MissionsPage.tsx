@@ -85,7 +85,7 @@ const MissionItem = ({
 
         {/* Body */}
         <div className="flex-1 min-w-0">
-          <p className={`font-rajdhani font-semibold text-sm tracking-wider uppercase truncate ${
+          <p className={`font-rajdhani font-bold text-base tracking-wider uppercase truncate ${
             isCompleted ? "line-through text-muted-foreground/50" : isFailed ? "text-destructive/80" : "text-foreground"
           }`}>
             {mission.name}

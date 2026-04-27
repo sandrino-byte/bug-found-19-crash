@@ -109,6 +109,11 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
               transition={{ duration: 0.15 }}
               className="space-y-2"
             >
+              {SHOP_ITEMS.length === 0 && (
+                <p className="text-muted-foreground text-xs tracking-[0.2em] uppercase text-center pt-16">
+                  Store is empty
+                </p>
+              )}
               {SHOP_ITEMS.map((item) => {
                 const affordable = canAfford(item);
                 const isPurchasedNow = recentlyPurchased === item.id;

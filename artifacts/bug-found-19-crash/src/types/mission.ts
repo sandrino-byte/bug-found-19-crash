@@ -55,18 +55,68 @@ export interface ExpiryResult {
   newlyFailed: Mission[];
 }
 
+/** Returns a string key identifying the current period for a recurring mission type. */
+export const getPeriodKey = (type: MissionType, date: Date): string => {
+  if (type === "daily") {
+    return `D-${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+  }
+  if (type === "weekly") {
+    // Anchor each week to its Sunday (end-of-week) date so all days Mon–Sun share a key.
+    const d = new Date(date);
+    const day = d.getDay();
+    const daysUntilSunday = day === 0 ? 0 : 7 - day;
+    d.setDate(d.getDate() + daysUntilSunday);
+    return `W-${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }
+  if (type === "monthly") {
+    return `M-${date.getFullYear()}-${date.getMonth()}`;
+  }
+  return "special";
+};
+
+/** Date used to determine which period a completed/failed mission belongs to. */
+const missionPeriodAnchor = (m: Mission): Date | null => {
+  if (m.completedAt) return new Date(m.completedAt);
+  if (m.deadline) return new Date(m.deadline);
+  return null;
+};
+
 export const processMissionExpiry = (missions: Mission[]): ExpiryResult => {
   const now = new Date();
+  const currentKey = (type: MissionType) => getPeriodKey(type, now);
   const newlyFailed: Mission[] = [];
+
   const updated = missions.map((m) => {
-    if (m.completed || m.failed || !m.deadline) return m;
-    if (new Date(m.deadline) < now) {
-      const next = { ...m, failed: true, penaltyApplied: true };
+    // 1) Active timed missions whose deadline passed → fail them.
+    if (!m.completed && !m.failed && m.deadline && new Date(m.deadline) < now) {
+      const next: Mission = { ...m, failed: true, penaltyApplied: true };
       newlyFailed.push(next);
       return next;
     }
+
+    // 2) Recurring (non-special) completed/failed missions auto-respawn
+    //    when the period rolls over (daily → next day, weekly → next week, monthly → next month).
+    if (m.type !== "special" && (m.completed || m.failed)) {
+      const anchor = missionPeriodAnchor(m);
+      if (anchor) {
+        const oldKey = getPeriodKey(m.type, anchor);
+        if (oldKey !== currentKey(m.type)) {
+          return {
+            ...m,
+            completed: false,
+            failed: false,
+            completedAt: null,
+            rewardClaimed: false,
+            penaltyApplied: false,
+            deadline: getDeadline(m.type),
+          };
+        }
+      }
+    }
+
     return m;
   });
+
   return { missions: updated, newlyFailed };
 };
 
