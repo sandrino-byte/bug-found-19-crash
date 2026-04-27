@@ -85,9 +85,14 @@ const MissionItem = ({
 
         {/* Body */}
         <div className="flex-1 min-w-0">
-          <p className={`font-rajdhani font-semibold text-sm tracking-wider uppercase truncate ${
-            isCompleted ? "line-through text-muted-foreground/50" : isFailed ? "text-destructive/80" : "text-foreground"
-          }`}>
+          <p
+            className={`font-rajdhani font-semibold text-base tracking-wide truncate ${
+              isCompleted ? "line-through opacity-60" : ""
+            }`}
+            style={{
+              color: isFailed ? "hsl(0 84% 60%)" : color,
+            }}
+          >
             {mission.name}
           </p>
 
