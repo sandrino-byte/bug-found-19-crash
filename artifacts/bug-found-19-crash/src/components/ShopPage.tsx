@@ -2,14 +2,15 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Coins, ShoppingBag, Check, Package, Plus, Trash2 } from "lucide-react";
 import type { Resources } from "@/types/resources";
-import type { ShopItem, InventoryEntry } from "@/types/shop";
-import { SHOP_ITEMS } from "@/types/shop";
+import type { ShopItem, InventoryEntry, PurchaseRecord } from "@/types/shop";
+import { SHOP_ITEMS, remainingPurchases } from "@/types/shop";
 import { formatGold, formatCrystals } from "@/types/resources";
 import CrystalIcon from "@/components/CrystalIcon";
 import AddShopItemDialog from "@/components/AddShopItemDialog";
 
 const INVENTORY_KEY = "inventory_data";
 const CUSTOM_SHOP_KEY = "custom_shop_items";
+const PURCHASE_HISTORY_KEY = "shop_purchase_history";
 
 interface ShopPageProps {
   resources: Resources;
@@ -30,9 +31,23 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
       return Array.isArray(parsed) ? parsed : [];
     } catch { return []; }
   });
+  const [purchaseHistory, setPurchaseHistory] = useState<PurchaseRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(PURCHASE_HISTORY_KEY);
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  });
   const [recentlyPurchased, setRecentlyPurchased] = useState<string | null>(null);
   const [tab, setTab] = useState<"shop" | "inventory">("shop");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [, setNowTick] = useState(0);
+
+  // Re-render once a minute so per-period limit counters refresh after midnight, etc.
+  useEffect(() => {
+    const id = setInterval(() => setNowTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(INVENTORY_KEY, JSON.stringify(inventory));
@@ -41,6 +56,10 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
   useEffect(() => {
     localStorage.setItem(CUSTOM_SHOP_KEY, JSON.stringify(customItems));
   }, [customItems]);
+
+  useEffect(() => {
+    localStorage.setItem(PURCHASE_HISTORY_KEY, JSON.stringify(purchaseHistory));
+  }, [purchaseHistory]);
 
   const allItems = useMemo<ShopItem[]>(() => [...SHOP_ITEMS, ...customItems], [customItems]);
 
@@ -52,9 +71,12 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
 
   const handleDeleteCustom = (id: string) => {
     setCustomItems((prev) => prev.filter((i) => i.id !== id));
+    setPurchaseHistory((prev) => prev.filter((r) => r.itemId !== id));
   };
 
   const handleBuy = (item: ShopItem) => {
+    const remaining = remainingPurchases(item, purchaseHistory);
+    if (remaining !== null && remaining <= 0) return;
     const ok = onPurchase(item);
     if (!ok) return;
     if (item.effect === "inventory") {
@@ -66,6 +88,7 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
         return [...prev, { itemId: item.id, quantity: 1 }];
       });
     }
+    setPurchaseHistory((prev) => [...prev, { itemId: item.id, timestamp: new Date().toISOString() }]);
     setRecentlyPurchased(item.id);
     setTimeout(() => setRecentlyPurchased(null), 800);
   };
@@ -73,6 +96,16 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
   const canAfford = (item: ShopItem): boolean => {
     const balance = item.currency === "gold" ? resources.gold : resources.crystals;
     return balance >= item.price;
+  };
+
+  const limitLabel = (item: ShopItem): string | null => {
+    const remaining = remainingPurchases(item, purchaseHistory);
+    if (remaining === null) return null;
+    const total = item.limit?.count ?? 0;
+    const period = item.limit?.scope === "daily" ? "today"
+      : item.limit?.scope === "weekly" ? "this week"
+      : "this month";
+    return `${remaining}/${total} ${period}`;
   };
 
   const inventoryItems = inventory
@@ -146,6 +179,9 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
                 const currencyColor = item.currency === "gold" ? "hsl(45 93% 58%)" : "hsl(187 92% 53%)";
                 const isGold = item.currency === "gold";
                 const isCustom = item.id.startsWith("custom_");
+                const limitText = limitLabel(item);
+                const remaining = remainingPurchases(item, purchaseHistory);
+                const limitReached = remaining !== null && remaining <= 0;
 
                 return (
                   <div
@@ -164,6 +200,14 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
                           {item.description}
                         </p>
                       )}
+                      {limitText && (
+                        <p
+                          className="text-[9px] tracking-[0.15em] uppercase font-rajdhani font-semibold mt-0.5"
+                          style={{ color: limitReached ? "hsl(0 75% 60%)" : "hsl(45 93% 58%)" }}
+                        >
+                          {limitReached ? `Sold out ${limitText.split(" ").slice(1).join(" ")}` : `${limitText} left`}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1 flex-shrink-0">
@@ -178,7 +222,7 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
 
                     <button
                       onClick={() => handleBuy(item)}
-                      disabled={!affordable}
+                      disabled={!affordable || limitReached}
                       className="flex-shrink-0 font-rajdhani font-bold text-[10px] tracking-[0.1em] uppercase border py-1 px-2.5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                       style={{
                         borderColor: currencyColor + "80",

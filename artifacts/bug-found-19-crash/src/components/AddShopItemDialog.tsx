@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coins, Plus, Minus } from "lucide-react";
-import type { ShopItem } from "@/types/shop";
+import { Coins, Plus, Minus, Infinity as InfinityIcon } from "lucide-react";
+import type { ShopItem, LimitScope } from "@/types/shop";
 import CrystalIcon from "@/components/CrystalIcon";
 
 interface AddShopItemDialogProps {
@@ -10,6 +10,13 @@ interface AddShopItemDialogProps {
   onClose: () => void;
   onSubmit: (item: Omit<ShopItem, "id">) => void;
 }
+
+const SCOPES: { key: LimitScope; label: string }[] = [
+  { key: "unlimited", label: "∞" },
+  { key: "daily",     label: "Day" },
+  { key: "weekly",    label: "Week" },
+  { key: "monthly",   label: "Month" },
+];
 
 const ACCENT = "hsl(45 93% 58%)";
 const GOLD = "hsl(45 93% 58%)";
@@ -20,6 +27,8 @@ const AddShopItemDialog = ({ open, onClose, onSubmit }: AddShopItemDialogProps) 
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState(100);
   const [currency, setCurrency] = useState<"gold" | "crystals">("gold");
+  const [scope, setScope] = useState<LimitScope>("unlimited");
+  const [limitCount, setLimitCount] = useState(1);
 
   useEffect(() => {
     if (open) {
@@ -27,10 +36,12 @@ const AddShopItemDialog = ({ open, onClose, onSubmit }: AddShopItemDialogProps) 
       setDescription("");
       setPrice(100);
       setCurrency("gold");
+      setScope("unlimited");
+      setLimitCount(1);
     }
   }, [open]);
 
-  const canSubmit = name.trim().length > 0 && price > 0;
+  const canSubmit = name.trim().length > 0 && price > 0 && (scope === "unlimited" || limitCount > 0);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -41,11 +52,16 @@ const AddShopItemDialog = ({ open, onClose, onSubmit }: AddShopItemDialogProps) 
       currency,
       effect: "inventory",
       category: "consumable",
+      limit: scope === "unlimited"
+        ? { scope: "unlimited", count: 0 }
+        : { scope, count: limitCount },
     });
   };
 
-  const inc = () => setPrice((p) => p + 1);
-  const dec = () => setPrice((p) => Math.max(1, p - 1));
+  const incPrice = () => setPrice((p) => p + 1);
+  const decPrice = () => setPrice((p) => Math.max(1, p - 1));
+  const incLimit = () => setLimitCount((p) => p + 1);
+  const decLimit = () => setLimitCount((p) => Math.max(1, p - 1));
   const currencyColor = currency === "gold" ? GOLD : CYAN;
 
   return createPortal(
@@ -138,7 +154,7 @@ const AddShopItemDialog = ({ open, onClose, onSubmit }: AddShopItemDialogProps) 
               </div>
 
               {/* Price stepper */}
-              <div className="px-4 pt-3 pb-3">
+              <div className="px-4 pt-3">
                 <p className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground mb-1">
                   Price
                 </p>
@@ -154,7 +170,7 @@ const AddShopItemDialog = ({ open, onClose, onSubmit }: AddShopItemDialogProps) 
                   </div>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={dec}
+                      onClick={decPrice}
                       className="w-6 h-6 flex items-center justify-center border border-muted-foreground/30 text-muted-foreground hover:border-foreground/50 hover:text-foreground transition-all"
                     >
                       <Minus size={11} />
@@ -173,13 +189,80 @@ const AddShopItemDialog = ({ open, onClose, onSubmit }: AddShopItemDialogProps) 
                       style={{ color: currencyColor }}
                     />
                     <button
-                      onClick={inc}
+                      onClick={incPrice}
                       className="w-6 h-6 flex items-center justify-center border border-muted-foreground/30 text-muted-foreground hover:border-foreground/50 hover:text-foreground transition-all"
                     >
                       <Plus size={11} />
                     </button>
                   </div>
                 </div>
+              </div>
+
+              {/* Purchase limit */}
+              <div className="px-4 pt-3 pb-3">
+                <p className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground mb-1">
+                  Purchase Limit
+                </p>
+                <div className="flex border border-border">
+                  {SCOPES.map((s) => {
+                    const active = scope === s.key;
+                    return (
+                      <button
+                        key={s.key}
+                        onClick={() => setScope(s.key)}
+                        className="flex-1 py-1.5 font-rajdhani font-bold text-[10px] tracking-[0.15em] uppercase transition-all flex items-center justify-center gap-1"
+                        style={{
+                          color: active ? ACCENT : "hsl(220 15% 42%)",
+                          background: active ? ACCENT + "18" : "transparent",
+                        }}
+                      >
+                        {s.key === "unlimited" && <InfinityIcon size={12} />}
+                        {s.key !== "unlimited" && s.label}
+                        {s.key === "unlimited" && <span className="sr-only">Unlimited</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {scope !== "unlimited" && (
+                  <div className="flex items-center justify-between gap-2 pt-2">
+                    <span className="font-rajdhani text-[11px] tracking-[0.15em] uppercase" style={{ color: ACCENT }}>
+                      Times per {scope === "daily" ? "day" : scope === "weekly" ? "week" : "month"}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={decLimit}
+                        className="w-6 h-6 flex items-center justify-center border border-muted-foreground/30 text-muted-foreground hover:border-foreground/50 hover:text-foreground transition-all"
+                      >
+                        <Minus size={11} />
+                      </button>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={String(limitCount)}
+                        onChange={(e) => {
+                          const cleaned = e.target.value.replace(/[^\d]/g, "");
+                          const n = parseInt(cleaned || "0", 10);
+                          setLimitCount(isNaN(n) ? 0 : n);
+                        }}
+                        onBlur={() => { if (limitCount < 1) setLimitCount(1); }}
+                        className="w-14 text-center font-rajdhani font-bold text-sm tabular-nums bg-transparent border border-border py-0.5 focus:outline-none focus:border-primary/60"
+                        style={{ color: ACCENT }}
+                      />
+                      <button
+                        onClick={incLimit}
+                        className="w-6 h-6 flex items-center justify-center border border-muted-foreground/30 text-muted-foreground hover:border-foreground/50 hover:text-foreground transition-all"
+                      >
+                        <Plus size={11} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {scope === "unlimited" && (
+                  <p className="text-[9px] tracking-wider text-muted-foreground/60 italic mt-1">
+                    Can be purchased any number of times.
+                  </p>
+                )}
               </div>
 
               {/* Buttons */}
