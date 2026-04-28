@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coins, ShoppingBag, Check, Package } from "lucide-react";
+import { Coins, ShoppingBag, Check, Package, Plus, Trash2 } from "lucide-react";
 import type { Resources } from "@/types/resources";
 import type { ShopItem, InventoryEntry } from "@/types/shop";
 import { SHOP_ITEMS } from "@/types/shop";
 import { formatGold, formatCrystals } from "@/types/resources";
 import CrystalIcon from "@/components/CrystalIcon";
+import AddShopItemDialog from "@/components/AddShopItemDialog";
 
 const INVENTORY_KEY = "inventory_data";
+const CUSTOM_SHOP_KEY = "custom_shop_items";
 
 interface ShopPageProps {
   resources: Resources;
@@ -21,12 +23,36 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
+  const [customItems, setCustomItems] = useState<ShopItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(CUSTOM_SHOP_KEY);
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  });
   const [recentlyPurchased, setRecentlyPurchased] = useState<string | null>(null);
   const [tab, setTab] = useState<"shop" | "inventory">("shop");
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(INVENTORY_KEY, JSON.stringify(inventory));
   }, [inventory]);
+
+  useEffect(() => {
+    localStorage.setItem(CUSTOM_SHOP_KEY, JSON.stringify(customItems));
+  }, [customItems]);
+
+  const allItems = useMemo<ShopItem[]>(() => [...SHOP_ITEMS, ...customItems], [customItems]);
+
+  const handleAddCustom = (data: Omit<ShopItem, "id">) => {
+    const item: ShopItem = { ...data, id: `custom_${crypto.randomUUID()}` };
+    setCustomItems((prev) => [...prev, item]);
+    setShowAddDialog(false);
+  };
+
+  const handleDeleteCustom = (id: string) => {
+    setCustomItems((prev) => prev.filter((i) => i.id !== id));
+  };
 
   const handleBuy = (item: ShopItem) => {
     const ok = onPurchase(item);
@@ -50,7 +76,7 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
   };
 
   const inventoryItems = inventory
-    .map((entry) => ({ entry, item: SHOP_ITEMS.find((i) => i.id === entry.itemId) }))
+    .map((entry) => ({ entry, item: allItems.find((i) => i.id === entry.itemId) }))
     .filter((x) => x.item) as { entry: InventoryEntry; item: ShopItem }[];
 
   return (
@@ -109,16 +135,17 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
               transition={{ duration: 0.15 }}
               className="space-y-2"
             >
-              {SHOP_ITEMS.length === 0 && (
+              {allItems.length === 0 && (
                 <p className="text-muted-foreground text-xs tracking-[0.2em] uppercase text-center pt-16">
-                  Store is empty
+                  Store is empty — tap + to add an item
                 </p>
               )}
-              {SHOP_ITEMS.map((item) => {
+              {allItems.map((item) => {
                 const affordable = canAfford(item);
                 const isPurchasedNow = recentlyPurchased === item.id;
                 const currencyColor = item.currency === "gold" ? "hsl(45 93% 58%)" : "hsl(187 92% 53%)";
                 const isGold = item.currency === "gold";
+                const isCustom = item.id.startsWith("custom_");
 
                 return (
                   <div
@@ -132,9 +159,11 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
                       <p className="font-rajdhani font-bold text-sm tracking-wider uppercase text-foreground truncate">
                         {item.name}
                       </p>
-                      <p className="text-[10px] text-muted-foreground/70 truncate">
-                        {item.description}
-                      </p>
+                      {item.description && (
+                        <p className="text-[10px] text-muted-foreground/70 truncate">
+                          {item.description}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1 flex-shrink-0">
@@ -159,6 +188,16 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
                     >
                       {isPurchasedNow ? <Check size={11} /> : "Buy"}
                     </button>
+
+                    {isCustom && (
+                      <button
+                        onClick={() => handleDeleteCustom(item.id)}
+                        className="flex-shrink-0 text-muted-foreground/30 hover:text-destructive/70 transition-colors"
+                        title="Remove item"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -206,6 +245,30 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Add custom item button — only on Store tab */}
+      {tab === "shop" && (
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={() => setShowAddDialog(true)}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-5 py-2.5 font-rajdhani font-bold text-xs tracking-[0.2em] uppercase border panel-chamfer transition-all"
+          style={{
+            color: "hsl(45 93% 58%)",
+            borderColor: "hsl(45 93% 58% / 0.6)",
+            background: "hsl(45 93% 58% / 0.15)",
+            boxShadow: "0 0 12px hsl(45 93% 58% / 0.3)",
+          }}
+        >
+          <Plus size={14} />
+          New item
+        </motion.button>
+      )}
+
+      <AddShopItemDialog
+        open={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        onSubmit={handleAddCustom}
+      />
     </div>
   );
 };
