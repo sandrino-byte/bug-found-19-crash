@@ -25,7 +25,7 @@ const CYAN = "hsl(187 92% 53%)";
 const AddShopItemDialog = ({ open, onClose, onSubmit }: AddShopItemDialogProps) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [price, setPrice] = useState(100);
+  const [price, setPrice] = useState(1);
   const [currency, setCurrency] = useState<"gold" | "crystals">("gold");
   const [scope, setScope] = useState<LimitScope>("unlimited");
   const [limitCount, setLimitCount] = useState(1);
@@ -34,7 +34,7 @@ const AddShopItemDialog = ({ open, onClose, onSubmit }: AddShopItemDialogProps) 
     if (open) {
       setName("");
       setDescription("");
-      setPrice(100);
+      setPrice(1);
       setCurrency("gold");
       setScope("unlimited");
       setLimitCount(1);
