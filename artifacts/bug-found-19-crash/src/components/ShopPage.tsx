@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useTransform, type PanInfo } from "framer-motion";
 import { Coins, ShoppingBag, Check, Package, Plus, Trash2 } from "lucide-react";
 import type { Resources } from "@/types/resources";
 import type { ShopItem, InventoryEntry, PurchaseRecord } from "@/types/shop";
@@ -7,6 +7,81 @@ import { SHOP_ITEMS, remainingPurchases } from "@/types/shop";
 import { formatGold, formatCrystals } from "@/types/resources";
 import CrystalIcon from "@/components/CrystalIcon";
 import AddShopItemDialog from "@/components/AddShopItemDialog";
+import UseItemDialog from "@/components/UseItemDialog";
+
+const SWIPE_THRESHOLD = 100;
+
+interface InventoryItemRowProps {
+  item: ShopItem;
+  quantity: number;
+  onRequestUse: (item: ShopItem, max: number) => void;
+}
+
+const InventoryItemRow = ({ item, quantity, onRequestUse }: InventoryItemRowProps) => {
+  const currencyColor = item.currency === "gold" ? "hsl(45 93% 58%)" : "hsl(187 92% 53%)";
+  const x = useMotionValue(0);
+  const opacity = useTransform(x, [-150, -80, 0, 80, 150], [0.3, 0.7, 1, 0.7, 0.3]);
+  const bg = useTransform(
+    x,
+    [-SWIPE_THRESHOLD, 0, SWIPE_THRESHOLD],
+    [`${currencyColor.replace(")", " / 0.18)")}`, `${currencyColor.replace(")", " / 0)")}`, `${currencyColor.replace(")", " / 0.18)")}`]
+  );
+
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
+    if (Math.abs(info.offset.x) > SWIPE_THRESHOLD) {
+      onRequestUse(item, quantity);
+    }
+  };
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ layout: { type: "spring", stiffness: 300, damping: 28 } }}
+    >
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.5}
+        dragDirectionLock
+        onDragEnd={handleDragEnd}
+        whileTap={{ scale: 0.98 }}
+        className="bg-card border border-primary/20 px-3 py-2.5 flex items-center gap-3 relative overflow-hidden touch-pan-y cursor-grab active:cursor-grabbing"
+        style={{
+          x,
+          opacity,
+          backgroundColor: bg,
+          clipPath:
+            "polygon(8px 0%, calc(100% - 8px) 0%, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0% calc(100% - 8px), 0% 8px)",
+        }}
+      >
+        <div
+          className="absolute left-0 top-0 bottom-0 w-0.5 pointer-events-none"
+          style={{ background: currencyColor }}
+        />
+        <div className="flex-1 min-w-0">
+          <p className="font-rajdhani font-bold text-sm tracking-wider uppercase text-foreground truncate">
+            {item.name}
+          </p>
+          <p className="text-[10px] text-muted-foreground/70 truncate">
+            {item.description || "Swipe to use"}
+          </p>
+        </div>
+        <div
+          className="flex-shrink-0 font-rajdhani font-bold text-xs tabular-nums px-2 py-0.5 border"
+          style={{
+            borderColor: currencyColor + "60",
+            color: currencyColor,
+            background: currencyColor + "12",
+          }}
+        >
+          ×{quantity}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
 
 const INVENTORY_KEY = "inventory_data";
 const CUSTOM_SHOP_KEY = "custom_shop_items";
@@ -41,6 +116,7 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
   const [recentlyPurchased, setRecentlyPurchased] = useState<string | null>(null);
   const [tab, setTab] = useState<"shop" | "inventory">("shop");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [useTarget, setUseTarget] = useState<{ item: ShopItem; max: number } | null>(null);
   const [, setNowTick] = useState(0);
 
   // Re-render once a minute so per-period limit counters refresh after midnight, etc.
@@ -96,6 +172,20 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
   const canAfford = (item: ShopItem): boolean => {
     const balance = item.currency === "gold" ? resources.gold : resources.crystals;
     return balance >= item.price;
+  };
+
+  const handleConfirmUse = (amount: number) => {
+    if (!useTarget) return;
+    const { item, max } = useTarget;
+    const safeAmount = Math.min(Math.max(1, amount), max);
+    setInventory((prev) =>
+      prev
+        .map((e) =>
+          e.itemId === item.id ? { ...e, quantity: e.quantity - safeAmount } : e
+        )
+        .filter((e) => e.quantity > 0)
+    );
+    setUseTarget(null);
   };
 
   const limitLabel = (item: ShopItem): string | null => {
@@ -260,30 +350,19 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
                   Inventory is empty
                 </p>
               ) : (
-                inventoryItems.map(({ entry, item }) => {
-                  const currencyColor = item.currency === "gold" ? "hsl(45 93% 58%)" : "hsl(187 92% 53%)";
-                  return (
-                    <div
+                <>
+                  <p className="text-muted-foreground/50 text-[9px] tracking-[0.2em] uppercase text-center pb-1">
+                    Swipe an item to use it
+                  </p>
+                  {inventoryItems.map(({ entry, item }) => (
+                    <InventoryItemRow
                       key={item.id}
-                      className="bg-card border border-primary/20 px-3 py-2.5 flex items-center gap-3 relative overflow-hidden"
-                      style={{ clipPath: "polygon(8px 0%, calc(100% - 8px) 0%, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0% calc(100% - 8px), 0% 8px)" }}
-                    >
-                      <div className="absolute left-0 top-0 bottom-0 w-0.5 pointer-events-none" style={{ background: currencyColor }} />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-rajdhani font-bold text-sm tracking-wider uppercase text-foreground truncate">
-                          {item.name}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground/70 truncate">{item.description}</p>
-                      </div>
-                      <div
-                        className="flex-shrink-0 font-rajdhani font-bold text-xs tabular-nums px-2 py-0.5 border"
-                        style={{ borderColor: currencyColor + "60", color: currencyColor, background: currencyColor + "12" }}
-                      >
-                        ×{entry.quantity}
-                      </div>
-                    </div>
-                  );
-                })
+                      item={item}
+                      quantity={entry.quantity}
+                      onRequestUse={(it, max) => setUseTarget({ item: it, max })}
+                    />
+                  ))}
+                </>
               )}
             </motion.div>
           )}
@@ -312,6 +391,14 @@ const ShopPage = ({ resources, onPurchase }: ShopPageProps) => {
         open={showAddDialog}
         onClose={() => setShowAddDialog(false)}
         onSubmit={handleAddCustom}
+      />
+
+      <UseItemDialog
+        open={useTarget !== null}
+        item={useTarget?.item ?? null}
+        maxQuantity={useTarget?.max ?? 1}
+        onClose={() => setUseTarget(null)}
+        onConfirm={handleConfirmUse}
       />
     </div>
   );
